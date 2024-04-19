@@ -6,3 +6,8 @@
 regression/*.log
 regression/*.out
 
+.cache
+.vscode
+compile_commands.json
+doxygen
+tc-driver/test
