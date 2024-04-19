@@ -209,7 +209,7 @@ public:
   }
 };
 
-template <int AW, int IW, int TOfst, typename MT> requires C_DERIVE(MT, MetadataBroadcastBase) && !C_DERIVE(MT, MetadataDirectoryBase)
+template <int AW, int IW, int TOfst, typename MT> requires C_DERIVE(MT, MetadataBroadcastBase) && (!C_DERIVE(MT, MetadataDirectoryBase))
 using MetadataBroadcast = MetadataMixer<AW, IW, TOfst, MT>;
 
 template <int AW, int IW, int TOfst, typename MT> requires C_DERIVE(MT, MetadataDirectoryBase)

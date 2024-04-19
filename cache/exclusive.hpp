@@ -119,7 +119,7 @@ public:
 // EnMon: whether to enable monitoring
 // EnDir: whether to enable use directory
 template<int IW, int NW, int DW, int P, typename MT, typename DT, typename IDX, typename RPC, typename DRPC, typename DLY, bool EnMon, bool EnDir>
-  requires !EnDir || DW > 0
+  requires  (!EnDir) || (DW > 0) 
 class CacheSkewedExclusive : public CacheSkewed<IW, NW, P, MT, DT, IDX, RPC, DLY, EnMon>
 {
   typedef CacheSkewed<IW, NW, P, MT, DT, IDX, RPC, DLY, EnMon> CacheSkewedT;
