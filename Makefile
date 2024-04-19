@@ -27,7 +27,7 @@ UTIL_HEADERS  = $(wildcard util/*.hpp)
 CACHE_HEADERS = $(wildcard cache/*.hpp)
 
 CRYPTO_LIB    = cryptopp/libcryptopp.a
-CACHE_OBJS    = cache/metadata.o
+CACHE_OBJS    = cache/metadata.o cache/tagcache.o
 UTIL_OBJS     = util/random.o util/query.o util/monitor.o
 
 all: libflexicas.a
@@ -76,5 +76,14 @@ libflexicas.a: $(CACHE_OBJS) $(UTIL_OBJS) $(CRYPTO_LIB)
 clean:
 	$(MAKE) clean-regression
 	-rm $(UTIL_OBJS) $(CACHE_OBJS)
+	$(MAKE) clean-tc-regression
 
 .PHONY: clean
+
+tc-driver/test: tc-driver/test.cpp  $(CACHE_OBJS) $(UTIL_OBJS) $(CRYPTO_LIB) $(CACHE_HEADERS)
+	$(CXX) $(CXXFLAGS) $< $(CACHE_OBJS) $(UTIL_OBJS) $(CRYPTO_LIB) -o $@
+
+tc-regression: tc-driver/test 
+
+clean-tc-regression:
+	-rm tc-driver/test
