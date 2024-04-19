@@ -72,6 +72,8 @@ private:
   uint64_t addr_conv(int i, uint64_t addr) const {
     return data[i].base + (((addr - data[i].base_pre) >> data[i].aoffset) & ~0x7);
   }
+
+  /// called together with addr_conv, extract tag offset from raw address
   uint64_t tag_offset(int i, uint64_t addr) const {
     return ((addr >> data[i].moffset) & data[i].amask) * data[i].tagsz;
   }
@@ -93,9 +95,32 @@ private:
     }
     return 0;
   }
+
+  uint64_t get_tagsz (int i) const { return data[i].tagsz; }
 };
 
+////////////////////////////////// DFI Tagger Specific Policies ///////////////////////////
+
+class TagCohPolicy : public MIPolicy<MetadataMI, false, false> {
+  static const uint32_t test_read_act = 5;
+  static const uint32_t test_write_act = 6;
+public:
+
+  bool is_test_read(coh_cmd_t cmd) const   { return cmd.act == test_read_act;  }
+  bool is_test_write(coh_cmd_t cmd) const  { return cmd.act == test_write_act; }
+
+  constexpr coh_cmd_t cmd_for_test_read()  const { return {-1, acquire_msg, test_read_act};  }
+  constexpr coh_cmd_t cmd_for_test_write() const { return {-1, acquire_msg, test_write_act}; }
+};
+
+typedef std::shared_ptr<TagCohPolicy> tag_policy_ptr;
+
+
 ////////////////////////////////// DFI Tagger Coherent Ports //////////////////////////////////
+
+typedef uint64_t dfitag_t ;
+typedef uint64_t shadow_addr_t;
+
 
 ///
 /// @brief Outer port of DFI Tagger,
@@ -115,18 +140,46 @@ class DfiTaggerOuterPortBase;
 /// * require a special Data Cache OuterPort class
 class DfiTaggerInnerPortBase 
 {
-  std::array<CacheBase*,3> * caches;
+protected:
   DfiTaggerOuterPortBase* outer;
+  std::array<CacheBase*,3> * caches;
   TagConfig & tg;
 public:
   virtual void acquire_resp(uint64_t addr, CMDataBase *data_inner, CMMetadataBase *meta_inner, coh_cmd_t cmd, uint64_t *delay) {};
   virtual void writeback_resp(uint64_t addr, CMDataBase *data_inner, CMMetadataBase *meta_inner, coh_cmd_t cmd, uint64_t *delay) {};
 
 public:
-  DfiTaggerInnerPortBase(std::array<CacheBase*,3> * caches_, TagConfig& tg) : caches(caches_), tg(tg) {}
+  DfiTaggerInnerPortBase(TagConfig& tg) : tg(tg) {}
   virtual ~DfiTaggerInnerPortBase() {}
 
+  virtual void set_caches(std::array<CacheBase*,3> *c) {caches = c;}
+  virtual void set_outer(DfiTaggerOuterPortBase* o) {outer = o;}
+
   void connect(CohClientBase*c, bool uncached = false) {};
+};
+
+class DfiTaggerCacheActions 
+{
+  CacheBase* cache;
+  DfiTaggerOuterPortBase* outer;
+  tag_policy_ptr policy;
+protected:
+  TagConfig & tg;
+public:
+  virtual void evict(CMMetadataBase* meta, CMDataBase* data, int32_t ai, uint32_t s, uint32_t w, uint64_t *delay);
+  virtual std::tuple<CMMetadataBase*, CMDataBase*, uint32_t, uint32_t, uint32_t>
+   replace_line(uint64_t addr, uint64_t *delay);
+  virtual std::tuple<CMMetadataBase *, CMDataBase *, uint32_t, uint32_t, uint32_t, bool>
+  access_line(uint64_t addr, coh_cmd_t cmd, uint64_t *delay);
+  virtual void write_line(uint64_t addr, CMDataBase *data_inner, CMMetadataBase *meta_inner, coh_cmd_t cmd, uint64_t *delay);
+  virtual void flush_line(uint64_t addr, coh_cmd_t cmd, uint64_t *delay);
+
+public:
+  DfiTaggerCacheActions(CacheBase* c, TagConfig& tg) : cache(c), tg(tg), policy(new TagCohPolicy()) {}
+  virtual ~DfiTaggerCacheActions() {}
+
+  void set_outer(DfiTaggerOuterPortBase* o) {outer = o;}
+  tag_policy_ptr& get_policy() {return policy;}
 };
 
 
@@ -136,15 +189,34 @@ public:
 ///
 class DfiTaggerDataCacheInterface : public DfiTaggerInnerPortBase
 {
+
+  std::array<std::unique_ptr<DfiTaggerCacheActions>,3> cache_actions;
 public:
-  typedef uint64_t dfitag_t ;
 
   uint64_t normalize(uint64_t addr) ;
+
+  /// TODO: implement
   virtual const dfitag_t read_tag(uint64_t addr, uint64_t *delay, size_t tagsz);
+  
+  /// TODO: implement
   virtual void write_tag(uint64_t addr, const dfitag_t tag, uint64_t *delay, size_t tagsz);
 
-  DfiTaggerDataCacheInterface(std::array<CacheBase*,3> * caches_, TagConfig& tg) : DfiTaggerInnerPortBase(caches_, tg) {}
+  DfiTaggerDataCacheInterface(TagConfig& tg) : DfiTaggerInnerPortBase(tg) {}
   virtual ~DfiTaggerDataCacheInterface(){}
+
+  virtual void set_caches(std::array<CacheBase*,3> *c) override {
+    DfiTaggerInnerPortBase::set_caches(c);
+    for (int i = 0; i < 3; i++) {
+      cache_actions[i] = std::make_unique<DfiTaggerCacheActions>((*c)[i], tg);
+    }
+  }
+
+  virtual void set_outer(DfiTaggerOuterPortBase* o) override {
+    DfiTaggerInnerPortBase::set_outer(o);
+    for (int i = 0; i < 3; i++) {
+      cache_actions[i]->set_outer(o);
+    }
+  }
 
 
   /// @brief Synchronization functions
@@ -163,6 +235,7 @@ class DfiTaggerOuterPortBase
 {
   std::array<CacheBase*,3> * caches;
   DfiTaggerInnerPortBase * inner;
+protected:
   TagConfig & tg;
 public:
   virtual void acquire_req(uint64_t addr, CMMetadataBase *meta, CMDataBase *data, coh_cmd_t outer_cmd, uint64_t *delay) {};
@@ -170,8 +243,10 @@ public:
   bool is_uncached() const {return true;};
 
 public:
-  DfiTaggerOuterPortBase(std::array<CacheBase*,3> * caches_, TagConfig& tg) : caches(caches_), tg(tg) {}
+  DfiTaggerOuterPortBase( TagConfig& tg) :tg(tg) {}
   virtual ~DfiTaggerOuterPortBase() {}
+
+  void set_caches(std::array<CacheBase*,3> *c) {caches = c;}
 
   void 	connect (CohMasterBase *h, std::pair< int32_t, policy_ptr > info) {};
 };
@@ -192,10 +267,14 @@ public:
 
   enum Hierarchy {TT, MTT, MTD, NumOfHierarchy};
 
+  std::array<CacheBase*,3> * get_caches() {return &caches;}
+
   /// TODO: initialize outer, inner connections with caches
   DfiTagger(CacheBase* tt, CacheBase* mtt, CacheBase* mtd, DfiTaggerOuterPortBase* outer, DfiTaggerInnerPortBase* inner, TagConfig& tg, std::string name)
   : caches{tt, mtt, mtd}, outer(outer), inner(inner), tg(tg), name(name)
   {
+    outer->set_caches(get_caches());
+    inner->set_caches(get_caches());
   }
 
   virtual ~DfiTagger() {
@@ -210,6 +289,40 @@ public:
   void detach_monitor() { }
 };
 
+class DfiTagAccessorBase {
+public:
+  virtual const dfitag_t read_tag(uint64_t index, uint64_t offset, size_t tagsz) = 0;
+  virtual void write_tag(uint64_t index, uint64_t offset, const dfitag_t tag, size_t tagsz) = 0;
+  virtual bool is_empty()= 0;
+};
+
+class Data64BTagAccessor : public DfiTagAccessorBase 
+{
+  TagConfig & tg;
+  CMDataBase* data;
+
+  static inline dfitag_t dmask(size_t tagsz) {
+    return ((uint64_t)1 << tagsz) - 1;
+  }
+public:
+  const dfitag_t read_tag(uint64_t index, uint64_t offset, size_t tagsz) override {
+    return (data->read(index) >> offset) & dmask(tagsz);
+  }
+  void write_tag(uint64_t index, uint64_t offset, const dfitag_t tag, size_t tagsz) override {
+    dfitag_t mask = dmask(tagsz) << offset;
+    data->write(index, tag << offset, mask);
+  }
+
+  bool is_empty() override {
+    bool emptiness = true; 
+    for (int i = 0; i<8; i++) 
+      emptiness &= (data->read(i) == 0); 
+    return emptiness;
+  }
+
+  Data64BTagAccessor(CMDataBase* data, TagConfig & tg) : data(data), tg(tg) {}
+  ~Data64BTagAccessor() {}
+};
 
 
 
