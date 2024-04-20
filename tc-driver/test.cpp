@@ -67,7 +67,7 @@ int main (void ) {
 
   DfiTagger dfi_tagger = DfiTagger(tt, mtt, mtd, outer, dc_interface, tag, "TC");
 
-  /// TODO: Initialize tag cache monitor
+  /// @todo Initialize tag cache monitor
 
   test_input(dc_interface);
 

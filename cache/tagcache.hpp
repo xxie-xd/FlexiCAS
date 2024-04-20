@@ -126,18 +126,15 @@ typedef uint64_t shadow_addr_t;
 /// @brief Outer port of DFI Tagger,
 /// it controls the interaction with tag memory
 ///
-/// TODO: 
-/// * decide implementations of acquire and writeback requests
-/// * implementation of connect()
 class DfiTaggerOuterPortBase;
 
 ///
 /// @brief InnerPort of DFI Tagger
 /// 
-/// TODO: 
-/// * decide implementations of acquire and writeback resposes
-/// * implementation of connect()
-/// * require a special Data Cache OuterPort class
+/// @todo
+///   * decide implementations of acquire and writeback resposes
+///   * implementation of connect()
+///   * require a special Data Cache OuterPort class
 class DfiTaggerInnerPortBase 
 {
 protected:
@@ -195,10 +192,8 @@ public:
 
   uint64_t normalize(uint64_t addr) ;
 
-  /// TODO: implement
   virtual const dfitag_t read_tag(uint64_t addr, uint64_t *delay, size_t tagsz);
   
-  /// TODO: implement
   virtual void write_tag(uint64_t addr, const dfitag_t tag, uint64_t *delay, size_t tagsz);
 
   DfiTaggerDataCacheInterface(TagConfig& tg) : DfiTaggerInnerPortBase(tg) {}
@@ -230,7 +225,9 @@ private:
   using DfiTaggerInnerPortBase::writeback_resp;
 };
 
-
+/// @todo
+///   * decide implementations of acquire and writeback requests
+///   * implementation of connect()
 class DfiTaggerOuterPortBase 
 {
   std::array<CacheBase*,3> * caches;
@@ -269,7 +266,6 @@ public:
 
   std::array<CacheBase*,3> * get_caches() {return &caches;}
 
-  /// TODO: initialize outer, inner connections with caches
   DfiTagger(CacheBase* tt, CacheBase* mtt, CacheBase* mtd, DfiTaggerOuterPortBase* outer, DfiTaggerInnerPortBase* inner, TagConfig& tg, std::string name)
   : caches{tt, mtt, mtd}, outer(outer), inner(inner), tg(tg), name(name)
   {
@@ -284,7 +280,7 @@ public:
       delete c;
     }
   }
-  /// TODO: add monitor support 
+  /// @todo add monitor support 
   void attach_monitor(MonitorBase* m) { }
   void detach_monitor() { }
 };

@@ -82,8 +82,8 @@ DfiTaggerDataCacheInterface::read_tag(uint64_t addr, uint64_t *delay, size_t tag
   else if (!hit_tt || !hit_mtt) {
     FORCE_READ(MTD, mtd);
 
-  /// TODO: Figure out whether we should load MTT if corresponding MTD is 0? I guess not.
-  /// TODO: Need to restrict data_mtd of Derived type of Data64B;
+  /// @todo Figure out whether we should load MTT if corresponding MTD is 0? I guess not.
+  /// @todo Need to restrict data_mtd of Derived type of Data64B;
   /// If the MTT entry does not exist, load it
     auto data_tag_mtd = Data64BTagAccessor(data_mtd, tg);
     uint64_t mapbit_mtd = data_tag_mtd.read_tag(smtd_idx, smtd_off, smtd_tgsz);
@@ -102,7 +102,7 @@ DfiTaggerDataCacheInterface::read_tag(uint64_t addr, uint64_t *delay, size_t tag
     uint64_t mapbit_mtt = data_tag_mtt.read_tag(smtt_idx, smtt_off, smtt_tgsz);
 
   /// else, fetch the tag table entry from memory
-  /// TODO: Figure out if there should be a FORCE_READ_ONLY instead of FORCE_READ
+  /// @todo Figure out if there should be a FORCE_READ_ONLY instead of FORCE_READ
     if (!hit_tt && mapbit_mtt != 0) {
       FORCE_READ_ONLY(TT, tt);
     }
@@ -293,7 +293,7 @@ DfiTaggerCacheActions::access_line(uint64_t addr, coh_cmd_t cmd, uint64_t *delay
     std::tie(meta, data, ai, s, w) = replace_line(addr, delay);
     coh_cmd_t outer_acquire = policy->cmd_for_outer_acquire(cmd); 
     outer->acquire_req(addr, meta, data, outer_acquire, delay); // fetch the missing block
-    /// TODO: Decide whether to set the hit bit when doing fetch access
+    /// @todo Decide whether to set the hit bit when doing fetch access
   }
 
   return std::make_tuple(meta, data, ai, s, w, hit);
@@ -310,7 +310,7 @@ void DfiTaggerCacheActions::write_line(uint64_t addr, CMDataBase *data_inner, CM
   cache->hook_write(addr, ai, s, w, hit, is_release, meta, data, delay);
 }
 
-/// TODO: is this useful in Tag Cache ?
+/// @todo is this useful in Tag Cache ?
 void DfiTaggerCacheActions::flush_line(uint64_t addr, coh_cmd_t cmd, uint64_t *delay) {
   
 }
