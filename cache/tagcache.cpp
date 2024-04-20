@@ -29,17 +29,17 @@ uint64_t DfiTaggerDataCacheInterface::normalize(uint64_t addr) {
 const dfitag_t
 DfiTaggerDataCacheInterface::read_tag(uint64_t addr, uint64_t *delay, size_t tagsz) {
   addr = normalize(addr);
-  shadow_addr_t stt = tg.addr_conv(0, addr);
-  uint64_t stt_off = tg.tag_offset(0, addr);
-  uint64_t stt_idx = word_idx(stt); 
+  const shadow_addr_t stt = tg.addr_conv(0, addr);
+  const uint64_t stt_off = tg.tag_offset(0, addr);
+  const uint64_t stt_idx = word_idx(stt); 
   const size_t stt_tgsz = tg.get_tagsz(0);
-  shadow_addr_t smtt = tg.addr_conv(1, stt);
-  uint64_t smtt_off = tg.tag_offset(1, stt);
-  uint64_t smtt_idx = word_idx(smtt);
+  const shadow_addr_t smtt = tg.addr_conv(1, stt);
+  const uint64_t smtt_off = tg.tag_offset(1, stt);
+  const uint64_t smtt_idx = word_idx(smtt);
   const size_t smtt_tgsz = tg.get_tagsz(1);
-  shadow_addr_t smtd = tg.addr_conv(2, smtt);
-  uint64_t smtd_off = tg.tag_offset(2, smtt);
-  uint64_t smtd_idx = word_idx(smtd);
+  const shadow_addr_t smtd = tg.addr_conv(2, smtt);
+  const uint64_t smtd_off = tg.tag_offset(2, smtt);
+  const uint64_t smtd_idx = word_idx(smtd);
   const size_t smtd_tgsz = tg.get_tagsz(2);
   const auto TT = DfiTagger::TT;
   const auto MTT = DfiTagger::MTT;
@@ -131,17 +131,17 @@ DfiTaggerDataCacheInterface::read_tag(uint64_t addr, uint64_t *delay, size_t tag
   */
 void DfiTaggerDataCacheInterface::write_tag(uint64_t addr, dfitag_t tag, uint64_t *delay, size_t tagsz) {
   addr = normalize(addr);
-  shadow_addr_t stt = tg.addr_conv(0, addr);
-  uint64_t stt_off = tg.tag_offset(0, addr);
-  uint64_t stt_idx = word_idx(stt); 
+  const shadow_addr_t stt = tg.addr_conv(0, addr);
+  const uint64_t stt_off = tg.tag_offset(0, addr);
+  const uint64_t stt_idx = word_idx(stt); 
   const size_t stt_tgsz = tg.get_tagsz(0);
-  shadow_addr_t smtt = tg.addr_conv(1, stt);
-  uint64_t smtt_off = tg.tag_offset(1, stt);
-  uint64_t smtt_idx = word_idx(smtt);
+  const shadow_addr_t smtt = tg.addr_conv(1, stt);
+  const uint64_t smtt_off = tg.tag_offset(1, stt);
+  const uint64_t smtt_idx = word_idx(smtt);
   const size_t smtt_tgsz = tg.get_tagsz(1);
-  shadow_addr_t smtd = tg.addr_conv(2, smtt);
-  uint64_t smtd_off = tg.tag_offset(2, smtt);
-  uint64_t smtd_idx = word_idx(smtd);
+  const shadow_addr_t smtd = tg.addr_conv(2, smtt);
+  const uint64_t smtd_off = tg.tag_offset(2, smtt);
+  const uint64_t smtd_idx = word_idx(smtd);
   const size_t smtd_tgsz = tg.get_tagsz(2);
   const auto TT = DfiTagger::TT;
   const auto MTT = DfiTagger::MTT;
