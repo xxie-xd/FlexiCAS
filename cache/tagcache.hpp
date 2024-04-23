@@ -5,6 +5,7 @@
 #include "cache/coherence.hpp"
 #include "cache/metadata.hpp"
 #include "cache/mi.hpp"
+#include "cache/memory.hpp"
 
 ///
 /// @brief Tag Configuration,
@@ -126,7 +127,6 @@ protected:
   using CohPolicyBase::cmd_for_probe_release;
   using CohPolicyBase::cmd_for_probe_writeback;
   using CohPolicyBase::cmd_for_null;
-  using CohPolicyBase::is_evict;
 
 public:
   virtual ~TagCohPolicyBase() {}
@@ -166,13 +166,7 @@ public:
   }
 
   virtual std::tuple<bool, bool, coh_cmd_t> flush_need_sync(coh_cmd_t cmd, const CMMetadataBase *meta, bool uncached) const {
-    if (uncached) {
-      if(meta){
-        if(is_evict(cmd)) return std::make_tuple(true, true, cmd_for_probe_release());
-        else              return std::make_tuple(true, true, cmd_for_probe_writeback());
-      } else              return std::make_tuple(true, false, cmd_for_null());
-    } else
-      return std::make_tuple(false, false, cmd_for_null());
+      return std::make_tuple(true, false, cmd_for_null());
   }
 
 };
@@ -277,10 +271,10 @@ public:
   virtual ~DfiTaggerDataCacheInterface(){}
 
   /// @brief Synchronization functions
-  virtual void flush(uint64_t addr, uint64_t *delay) {};
-  virtual void writeback(uint64_t addr, uint64_t *delay) {};
-  virtual void writeback_invalidate(uint64_t *delay) {};
-  virtual void flush_cache(uint64_t *delay) {};
+  virtual void flush(uint64_t addr, uint64_t *delay) ;
+  virtual void writeback(uint64_t addr, uint64_t *delay) ;
+  virtual void writeback_invalidate(uint64_t *delay) ;
+  virtual void flush_cache(uint64_t *delay) ;
 
 private:
   using DfiTaggerInnerPortBase::acquire_resp;
@@ -311,8 +305,8 @@ class DfiTaggerOuterPortBase
 protected:
   TagConfig & tg;
 public:
-  virtual void acquire_req(uint64_t addr, CMMetadataBase *meta, CMDataBase *data, coh_cmd_t outer_cmd, uint64_t *delay) ;
-  virtual void writeback_req(uint64_t addr, CMMetadataBase *meta, CMDataBase *data, coh_cmd_t outer_cmd, uint64_t *delay) ;
+  virtual void acquire_req(uint64_t addr, CMMetadataBase *meta, CMDataBase *data, coh_cmd_t outer_cmd, uint64_t *delay) {};
+  virtual void writeback_req(uint64_t addr, CMMetadataBase *meta, CMDataBase *data, coh_cmd_t outer_cmd, uint64_t *delay) {};
   bool is_uncached() const {return false;};
 
 public:
@@ -435,6 +429,31 @@ public:
   ~Data64BTagAccessor() {}
 };
 
+
+template<typename DT, typename DLY, bool EnMon = false>
+  requires C_DERIVE_OR_VOID(DT, CMDataBase) && C_DERIVE_OR_VOID(DLY, DelayBase)
+class TagMemoryModel : public SimpleMemoryModel<DT,DLY,EnMon> {
+protected:
+  using SimpleMemoryModel<DT, DLY, EnMon>::pages;
+  using SimpleMemoryModel<DT, DLY, EnMon>::hook_write;
+  using SimpleMemoryModel<DT, DLY, EnMon>::allocate;
+public:
+  TagMemoryModel(const std::string&n)
+    : SimpleMemoryModel<DT, DLY, EnMon>(n) {}
+
+  virtual ~TagMemoryModel() {}
+
+  virtual void writeback_resp(uint64_t addr, CMDataBase *data_inner, CMMetadataBase *meta_inner, coh_cmd_t cmd, uint64_t *delay) override {
+    if constexpr (!C_VOID(DT)) {
+      auto ppn = addr >> 12;
+      auto offset = addr & 0x0fffull;
+      if(!pages.count(ppn)) allocate(ppn);
+      uint64_t *mem_addr = reinterpret_cast<uint64_t *>(pages[ppn] + offset);
+      for(int i=0; i<8; i++) mem_addr[i] = data_inner->read(i);
+    }
+    hook_write(addr, 0, 0, 0, true, true, meta_inner, data_inner, delay);
+  }
+};
 
 
 

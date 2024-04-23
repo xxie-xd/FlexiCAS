@@ -54,7 +54,7 @@ typedef CacheNorm<MTDIW,MTDNW,MTD_metadata_t,MTD_data_t,MTD_indexer_t, MTD_repla
 typedef Data64B TagMemory_data_t;
 typedef void TagMemory_delay_t;
 
-typedef SimpleMemoryModel<TagMemory_data_t, TagMemory_delay_t> TagMemory_t;
+typedef TagMemoryModel<TagMemory_data_t, TagMemory_delay_t> TagMemory_t;
 
 int main (void ) {
 
@@ -103,6 +103,7 @@ int main (void ) {
 
   // dfi_tagger.attach_monitor(acc_monitors[0], acc_monitors[1], acc_monitors[2]);
   dfi_tagger.attach_monitor(trace_monitor, trace_monitor, trace_monitor);
+  tag_mem->attach_monitor(trace_monitor);
 
   test_input(dc_interface);
 
@@ -128,9 +129,16 @@ void rw_test(DfiTaggerDataCacheInterface* dc_interface) {
   assert(ret == 0);
 }
 
+void flush_test(DfiTaggerDataCacheInterface* dc_interface) {
+  dc_interface->flush(0, nullptr);  
+  rw_test(dc_interface);
+  dc_interface->flush_cache(nullptr);
+}
+
 int test_input(DfiTaggerDataCacheInterface* dc_interface) {
 
   rw_test(dc_interface);
+  flush_test(dc_interface);
 
   return 0;
 }

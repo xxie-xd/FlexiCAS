@@ -18,14 +18,64 @@ DfiTaggerOuterPortBase::set_cache_actions(std::array<std::shared_ptr<DfiTaggerCa
   }
 }
 
-void 
-DfiTaggerOuterPortBase::acquire_req(uint64_t addr, CMMetadataBase *meta, CMDataBase *data, coh_cmd_t outer_cmd, uint64_t *delay) {
-  coh->acquire_resp(addr, data, meta->get_outer_meta(), outer_cmd, delay);
+void
+DfiTaggerDataCacheInterface::flush(uint64_t addr, uint64_t *delay) {
+  addr = normalize(addr); 
+  const shadow_addr_t stt = tg.addr_conv(0, addr);
+  const shadow_addr_t smtt = tg.addr_conv(1, stt);
+  const shadow_addr_t smtd = tg.addr_conv(2, smtt);
+  auto sa = std::array<shadow_addr_t,3>{stt, smtt, smtd};
+  for (int i = 0; i < 3; i++) {
+    cache_actions[i]->flush_line(
+      sa[i], 
+      cache_actions[i]->get_policy()->cmd_for_flush(), delay);
+  }
 }
 
 void 
-DfiTaggerOuterPortBase::writeback_req(uint64_t addr, CMMetadataBase *meta, CMDataBase *data, coh_cmd_t outer_cmd, uint64_t *delay) {
-  
+DfiTaggerDataCacheInterface::writeback(uint64_t addr, uint64_t *delay) {
+  addr = normalize(addr); 
+  const shadow_addr_t stt = tg.addr_conv(0, addr);
+  const shadow_addr_t smtt = tg.addr_conv(1, stt);
+  const shadow_addr_t smtd = tg.addr_conv(2, smtt);
+  auto sa = std::array<shadow_addr_t,3>{stt, smtt, smtd};
+  for (int i = 0; i < 3; i++) {
+    cache_actions[i]->flush_line(
+      sa[i], 
+      cache_actions[i]->get_policy()->cmd_for_writeback(), delay);
+  }
+}
+
+void 
+DfiTaggerDataCacheInterface::writeback_invalidate(uint64_t *delay) {
+  for (auto& ca: cache_actions) {
+    auto cache = ca->get_cache();
+    auto policy = ca->get_policy();
+    auto [npar, nset, nway] = cache->size();
+    for(int ipar=0; ipar<npar; ipar++)
+      for(int iset=0; iset < nset; iset++)
+        for(int iway=0; iway < nway; iway++) {
+          auto [meta, data] = cache->access_line(ipar, iset, iway);
+          if(meta->is_dirty())
+            ca->flush_line(meta->addr(iset), policy->cmd_for_flush(), delay);
+        }
+  }
+}
+
+void
+DfiTaggerDataCacheInterface::flush_cache(uint64_t *delay) {
+  for (auto& ca: cache_actions) {
+    auto cache = ca->get_cache();
+    auto policy = ca->get_policy();
+    auto [npar, nset, nway] = cache->size();
+    for(int ipar=0; ipar<npar; ipar++)
+      for(int iset=0; iset < nset; iset++)
+        for(int iway=0; iway < nway; iway++) {
+          auto [meta, data] = cache->access_line(ipar, iset, iway);
+          if(meta->is_valid())
+            ca->flush_line(meta->addr(iset), policy->cmd_for_flush(), delay);
+        }
+  }
 }
 
 ///
@@ -366,7 +416,27 @@ DfiTaggerCacheActions::create_line(uint64_t addr, CMDataBase* data_impl, uint64_
   return std::make_tuple(meta, data, ai, s, w);
 }
 
-/// @todo is this useful in Tag Cache ?
+
 void DfiTaggerCacheActions::flush_line(uint64_t addr, coh_cmd_t cmd, uint64_t *delay) {
-  
+    uint32_t ai, s, w;
+    CMMetadataBase *meta = nullptr;
+    CMDataBase *data = nullptr;
+    bool hit = cache->hit(addr, &ai, &s, &w);
+    if(hit) std::tie(meta, data) = cache->access_line(ai, s, w);
+
+    auto [flush, probe, probe_cmd] = policy->flush_need_sync(cmd, meta, outer->is_uncached());
+    if(!flush) {
+      // do not handle flush at this level, and send it to the outer cache
+      outer->writeback_req(addr, nullptr, nullptr, policy->cmd_for_flush(), delay);
+      return;
+    }
+
+    if(!hit) return;
+
+
+    auto writeback = policy->writeback_need_writeback(meta, outer->is_uncached());
+    if(writeback.first) outer->writeback_req(addr, meta, data, writeback.second, delay); // writeback if dirty
+
+    policy->meta_after_flush(cmd, meta);
+    cache->hook_manage(addr, ai, s, w, hit, policy->is_evict(cmd), writeback.first, meta, data, delay);
 }
