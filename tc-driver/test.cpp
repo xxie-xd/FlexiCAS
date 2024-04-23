@@ -121,6 +121,8 @@ int test_input(DfiTaggerDataCacheInterface* dc_interface) {
 
   dc_interface->read_tag(0, nullptr, tagsize);
   dc_interface->read_tag(1, nullptr, tagsize);
-  
+  dc_interface->write_tag(0, 1, nullptr, tagsize);
+  auto ret = dc_interface->read_tag(1, nullptr, tagsize);
+  assert(ret == 1);
   return 0;
 }

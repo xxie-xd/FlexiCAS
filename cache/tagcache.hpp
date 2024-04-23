@@ -115,6 +115,11 @@ public:
   constexpr coh_cmd_t cmd_for_test_read()  const { return {-1, acquire_msg, test_read_act};  }
   constexpr coh_cmd_t cmd_for_test_write() const { return {-1, acquire_msg, test_write_act}; }
 
+  /// @todo Figure out what is the proper value of outer_meta
+  virtual void meta_after_create(CMMetadataBase* meta, uint64_t addr) const {
+    meta->init(addr);
+    meta->to_modified(-1);
+  }
 /// The following protected members and functions are identical to MIPolicy<MT, false, false>
 protected:
   using CohPolicyBase::outer;
@@ -234,10 +239,12 @@ protected:
 public:
   virtual void evict(CMMetadataBase* meta, CMDataBase* data, int32_t ai, uint32_t s, uint32_t w, uint64_t *delay);
   virtual std::tuple<CMMetadataBase*, CMDataBase*, uint32_t, uint32_t, uint32_t>
-   replace_line(uint64_t addr, uint64_t *delay);
+    replace_line(uint64_t addr, uint64_t *delay);
   virtual std::tuple<CMMetadataBase *, CMDataBase *, uint32_t, uint32_t, uint32_t, bool>
-  access_line(uint64_t addr, coh_cmd_t cmd, uint64_t *delay);
+    access_line(uint64_t addr, coh_cmd_t cmd, uint64_t *delay);
   virtual void write_line(uint64_t addr, CMDataBase *data_inner, CMMetadataBase *meta_inner, coh_cmd_t cmd, uint64_t *delay);
+  virtual std::tuple<CMMetadataBase*, CMDataBase*, uint32_t, uint32_t, uint32_t>
+    create_line(uint64_t addr, CMDataBase *data_tmpl, uint64_t *delay);
   virtual void flush_line(uint64_t addr, coh_cmd_t cmd, uint64_t *delay);
 
 public:

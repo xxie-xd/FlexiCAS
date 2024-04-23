@@ -74,16 +74,24 @@ DfiTaggerDataCacheInterface::read_tag(uint64_t addr, uint64_t *delay, size_t tag
   Data64B dummy_tt;
   Data64B dummy_mtt;
 
+  /// Declarations of mutables
+  CMMetadataBase* meta_tt, *meta_mtt, *meta_mtd;
+  CMDataBase* data_tt, *data_mtt, *data_mtd;
+  uint32_t ai_tt, ai_mtt, ai_mtd;
+  uint32_t s_tt, s_mtt, s_mtd;
+  uint32_t w_tt, w_mtt, w_mtd;
+  bool hit_tt, hit_mtt, hit_mtd;
+
   /// Checks wether the MTT and Tag Table has a matching entry
 
 #define TEST_READ_ONLY(HRCY,postfix) \
   auto cmd_read_ ## postfix = cache_actions[HRCY]->get_policy()->cmd_for_test_read(); \
-  auto [meta_ ## postfix, data_ ## postfix, ai_ ## postfix, s_ ## postfix, w_ ## postfix, hit_ ## postfix] \
+  std::tie(meta_ ## postfix, data_ ## postfix, ai_ ## postfix, s_ ## postfix, w_ ## postfix, hit_ ## postfix) \
     = cache_actions[HRCY]->access_line(s ## postfix, cmd_read_ ## postfix, delay); \
 
 #define FORCE_READ_ONLY(HRCY,postfix) \
   auto cmd_forced_read_ ## postfix = cache_actions[HRCY]->get_policy()->cmd_for_read(); \
-  auto [meta_ ## postfix, data_ ## postfix, ai_ ## postfix, s_ ## postfix, w_ ## postfix, hit_ ## postfix] \
+  std::tie(meta_ ## postfix, data_ ## postfix, ai_ ## postfix, s_ ## postfix, w_ ## postfix, hit_ ## postfix) \
     = cache_actions[HRCY]->access_line(s ## postfix, cmd_forced_read_ ## postfix, delay); \
 
 #define HOOK_READ_ONLY(HRCY,postfix) \
@@ -94,6 +102,10 @@ DfiTaggerDataCacheInterface::read_tag(uint64_t addr, uint64_t *delay, size_t tag
 
 #define FORCE_READ(HRCY,postfix) \
   FORCE_READ_ONLY(HRCY,postfix);HOOK_READ_ONLY(HRCY,postfix)
+
+#define CREATE_ONLY(HRCY,postfix) \
+  std::tie(meta_ ## postfix, data_ ## postfix, ai_ ## postfix, s_ ## postfix, w_ ## postfix) \
+    = cache_actions[HRCY]->create_line(s ## postfix, &dummy_ ## postfix, delay);
 
   /// Searching order: Bottom (TT) -> Top (MTD) -> Middle (MTT)
 
@@ -118,7 +130,8 @@ DfiTaggerDataCacheInterface::read_tag(uint64_t addr, uint64_t *delay, size_t tag
       FORCE_READ_ONLY(MTT, mtt); /// just perform fetching
     }
     else if (!hit_mtt && mapbit_mtd == 0) {
-      data_mtt = &dummy_mtt;
+      CREATE_ONLY(MTT, mtt);
+      if (meta_mtt == nullptr) {}
     }
 
   /// if the corresponding tag table entry is all zero,
@@ -133,7 +146,7 @@ DfiTaggerDataCacheInterface::read_tag(uint64_t addr, uint64_t *delay, size_t tag
       FORCE_READ_ONLY(TT, tt);
     }
     else if (!hit_tt && mapbit_mtt == 0) {
-      data_tt = &dummy_tt;
+      CREATE_ONLY(TT, tt);
     }
 
   }
@@ -176,14 +189,22 @@ void DfiTaggerDataCacheInterface::write_tag(uint64_t addr, dfitag_t tag, uint64_
   Data64B dummy_tt;
   Data64B dummy_mtt;
 
+  /// Declarations of mutables
+  CMMetadataBase* meta_tt, *meta_mtt, *meta_mtd;
+  CMDataBase* data_tt, *data_mtt, *data_mtd;
+  uint32_t ai_tt, ai_mtt, ai_mtd;
+  uint32_t s_tt, s_mtt, s_mtd;
+  uint32_t w_tt, w_mtt, w_mtd;
+  bool hit_tt, hit_mtt, hit_mtd;
+
 #define TEST_WRITE_ONLY(HRCY,postfix) \
   auto cmd_write_ ## postfix = cache_actions[HRCY]->get_policy()->cmd_for_test_write(); \
-  auto [meta_ ## postfix, data_ ## postfix, ai_ ## postfix, s_ ## postfix, w_ ## postfix, hit_ ## postfix] \
+  std::tie(meta_ ## postfix, data_ ## postfix, ai_ ## postfix, s_ ## postfix, w_ ## postfix, hit_ ## postfix) \
     = cache_actions[HRCY]->access_line(s ## postfix, cmd_write_ ## postfix, delay); \
 
 #define FORCE_WRITE_ONLY(HRCY,postfix) \
   auto cmd_forced_write_ ## postfix = cache_actions[HRCY]->get_policy()->cmd_for_write(); \
-  auto [meta_ ## postfix, data_ ## postfix, ai_ ## postfix, s_ ## postfix, w_ ## postfix, hit_ ## postfix] \
+  std::tie(meta_ ## postfix, data_ ## postfix, ai_ ## postfix, s_ ## postfix, w_ ## postfix, hit_ ## postfix) \
     = cache_actions[HRCY]->access_line(s ## postfix, cmd_forced_write_ ## postfix, delay); \
 
 #define HOOK_WRITE_ONLY(HRCY,postfix) \
@@ -212,7 +233,7 @@ void DfiTaggerDataCacheInterface::write_tag(uint64_t addr, dfitag_t tag, uint64_
       FORCE_READ_ONLY(MTT, mtt);  /// just perform fetching
     }
     else if (!hit_mtd && mapbit_mtd == 0) {
-      data_mtt = &dummy_mtt;
+      CREATE_ONLY(MTT, mtt);
     }
 
     auto data_mtt_tag = Data64BTagAccessor(data_mtt, tg);
@@ -221,7 +242,7 @@ void DfiTaggerDataCacheInterface::write_tag(uint64_t addr, dfitag_t tag, uint64_
       FORCE_WRITE_ONLY(TT, tt);  /// hook_write moved to position after actual write
     }
     else if (!hit_mtt && mapbit_mtt == 0) {
-      data_tt = &dummy_tt;
+      CREATE_ONLY(TT, tt);
     }
   }
 
@@ -237,19 +258,20 @@ void DfiTaggerDataCacheInterface::write_tag(uint64_t addr, dfitag_t tag, uint64_
 
   auto data_mtt_tag = Data64BTagAccessor(data_mtt, tg);
   bool data_mtt_empty_old = data_mtt_tag.is_empty();
-  data_mtt_tag.write_tag(smtt_idx, smtt_off, data_tt_empty_new, smtt_tgsz);
+  data_mtt_tag.write_tag(smtt_idx, smtt_off, !data_tt_empty_new, smtt_tgsz);
   bool data_mtt_empty_new = data_mtt_tag.is_empty();
   HOOK_WRITE_ONLY(MTT, mtt);
 
   if (data_mtt_empty_new == data_mtt_empty_old) return ;
 
   auto data_mtd_tag = Data64BTagAccessor(data_mtd, tg);
-  data_mtd_tag.write_tag(smtd_idx, smtd_off, data_mtt_empty_new, smtd_tgsz);
+  data_mtd_tag.write_tag(smtd_idx, smtd_off, !data_mtt_empty_new, smtd_tgsz);
   HOOK_WRITE_ONLY(MTD, mtd);
 
 #undef HOOK_WRITE_ONLY
 #undef FORCE_WRITE_ONLY
 #undef TEST_WRITE_ONLY
+#undef CREATE_ONLY
 #undef FORCE_READ
 #undef TEST_READ
 #undef HOOK_READ_ONLY
@@ -334,6 +356,14 @@ void DfiTaggerCacheActions::write_line(uint64_t addr, CMDataBase *data_inner, CM
   assert(meta_inner);
   bool is_release = true;
   cache->hook_write(addr, ai, s, w, hit, is_release, meta, data, delay);
+}
+
+std::tuple<CMMetadataBase*, CMDataBase*, uint32_t, uint32_t, uint32_t>
+DfiTaggerCacheActions::create_line(uint64_t addr, CMDataBase* data_impl, uint64_t *delay) {
+  auto [meta, data, ai, s, w] = replace_line(addr, delay);
+  if(data_impl) data->copy(data_impl);
+  policy->meta_after_create(meta, addr);
+  return std::make_tuple(meta, data, ai, s, w);
 }
 
 /// @todo is this useful in Tag Cache ?
