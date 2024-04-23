@@ -181,7 +181,6 @@ DfiTaggerDataCacheInterface::read_tag(uint64_t addr, uint64_t *delay, size_t tag
     }
     else if (!hit_mtt && mapbit_mtd == 0) {
       CREATE_ONLY(MTT, mtt);
-      if (meta_mtt == nullptr) {}
     }
 
   /// if the corresponding tag table entry is all zero,
