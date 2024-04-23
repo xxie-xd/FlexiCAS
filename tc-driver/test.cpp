@@ -117,12 +117,20 @@ int main (void ) {
   return 0;
 }
 
-int test_input(DfiTaggerDataCacheInterface* dc_interface) {
-
+void rw_test(DfiTaggerDataCacheInterface* dc_interface) {
   dc_interface->read_tag(0, nullptr, tagsize);
   dc_interface->read_tag(1, nullptr, tagsize);
   dc_interface->write_tag(0, 1, nullptr, tagsize);
   auto ret = dc_interface->read_tag(1, nullptr, tagsize);
   assert(ret == 1);
+  dc_interface->write_tag(2, 0, nullptr, tagsize);
+  ret = dc_interface->read_tag(0, nullptr, tagsize);
+  assert(ret == 0);
+}
+
+int test_input(DfiTaggerDataCacheInterface* dc_interface) {
+
+  rw_test(dc_interface);
+
   return 0;
 }
