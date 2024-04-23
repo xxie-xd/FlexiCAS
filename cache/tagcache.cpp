@@ -2,6 +2,32 @@
 
 static inline int word_idx(uint64_t addr) { return (addr >> 3) & 0x7; }
 
+void 
+DfiTaggerInnerPortBase::set_cache_actions(std::array<std::shared_ptr<DfiTaggerCacheActions>,3> &cas){
+  cache_actions = cas;
+  for (auto& ca: cas)
+    ca->set_inner(this);
+}
+
+void 
+DfiTaggerOuterPortBase::set_cache_actions(std::array<std::shared_ptr<DfiTaggerCacheActions>,3>& cas) {
+  cache_actions = cas; 
+  for (int i = 0; i < 3; i++) {
+    clients[i] = new DfiTaggerOuterCohPortClient(cas[i]->get_policy());
+    cas[i]->set_outer(clients[i]);
+  }
+}
+
+void 
+DfiTaggerOuterPortBase::acquire_req(uint64_t addr, CMMetadataBase *meta, CMDataBase *data, coh_cmd_t outer_cmd, uint64_t *delay) {
+  coh->acquire_resp(addr, data, meta->get_outer_meta(), outer_cmd, delay);
+}
+
+void 
+DfiTaggerOuterPortBase::writeback_req(uint64_t addr, CMMetadataBase *meta, CMDataBase *data, coh_cmd_t outer_cmd, uint64_t *delay) {
+  
+}
+
 ///
 /// @brief 
 /// 
@@ -61,7 +87,7 @@ DfiTaggerDataCacheInterface::read_tag(uint64_t addr, uint64_t *delay, size_t tag
     = cache_actions[HRCY]->access_line(s ## postfix, cmd_forced_read_ ## postfix, delay); \
 
 #define HOOK_READ_ONLY(HRCY,postfix) \
-  (*caches)[HRCY]->hook_read(s ## postfix, ai_ ## postfix, s_ ## postfix, w_ ## postfix, hit_ ## postfix, meta_ ## postfix, data_ ## postfix, delay); \
+  cache_actions[HRCY]->get_cache()->hook_read(s ## postfix, ai_ ## postfix, s_ ## postfix, w_ ## postfix, hit_ ## postfix, meta_ ## postfix, data_ ## postfix, delay); \
 
 #define TEST_READ(HRCY,postfix) \
   TEST_READ_ONLY(HRCY,postfix);HOOK_READ_ONLY(HRCY,postfix)
@@ -162,7 +188,7 @@ void DfiTaggerDataCacheInterface::write_tag(uint64_t addr, dfitag_t tag, uint64_
 
 #define HOOK_WRITE_ONLY(HRCY,postfix) \
   meta_ ## postfix -> to_dirty(); \
-  (*caches)[HRCY]->hook_write(s ## postfix, ai_ ## postfix, s_ ## postfix, w_ ## postfix, hit_ ## postfix, false, meta_ ## postfix, data_ ## postfix, delay); \
+  cache_actions[HRCY]->get_cache()->hook_write(s ## postfix, ai_ ## postfix, s_ ## postfix, w_ ## postfix, hit_ ## postfix, false, meta_ ## postfix, data_ ## postfix, delay); \
 
   /// Search for tag table entry first
   /// which will introduce some read accesses.
@@ -280,7 +306,7 @@ DfiTaggerCacheActions::replace_line(uint64_t addr, uint64_t *delay) {
 ///
 std::tuple<CMMetadataBase*, CMDataBase*, uint32_t, uint32_t, uint32_t, bool>
 DfiTaggerCacheActions::access_line(uint64_t addr, coh_cmd_t cmd, uint64_t *delay) {
-  uint32_t ai, s, w;
+  uint32_t ai=0, s=0, w=0;
   CMMetadataBase *meta = nullptr;
   CMDataBase *data = nullptr;
   bool hit = cache->hit(addr, &ai, &s, &w);
