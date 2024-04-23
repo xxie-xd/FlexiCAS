@@ -54,7 +54,7 @@ typedef CacheNorm<MTDIW,MTDNW,MTD_metadata_t,MTD_data_t,MTD_indexer_t, MTD_repla
 typedef Data64B TagMemory_data_t;
 typedef void TagMemory_delay_t;
 
-typedef TagMemoryModel<TagMemory_data_t, TagMemory_delay_t> TagMemory_t;
+typedef TagMemoryModel<TagMemory_data_t, TagMemory_delay_t, EnMon> TagMemory_t;
 
 int main (void ) {
 
