@@ -1,7 +1,7 @@
 #include "cache/memory.hpp"
 #include "util/cache_type.hpp"
 #include "cache/tagcache.hpp"
-
+#include "tc-driver/tracereader.hpp"
 
 int test_input(DfiTaggerDataCacheInterface* dc_interface);
 
@@ -56,64 +56,109 @@ typedef void TagMemory_delay_t;
 
 typedef TagMemoryModel<TagMemory_data_t, TagMemory_delay_t, EnMon> TagMemory_t;
 
-int main (void ) {
 
+struct Executor_t {
+  DfiTaggerDataCacheInterface* dc_interface;
 
+  Executor_t(DfiTaggerDataCacheInterface* dc_interface) : dc_interface(dc_interface) {}
+  void operator()(uint64_t t_start, uint64_t t_delta, uint64_t pa, bool rw, uint64_t tagvalue) {
+    if(rw) {
+      dc_interface->write_tag(pa, tagvalue, nullptr, tagsize);
+    }
+    else {
+      dc_interface->read_tag(pa, nullptr, tagsize);
+    }
+  }
+
+};
+
+int test_trace(std::string stemname,Executor_t& executor) {
+  TraceReader tr(stemname,executor);
+  tr.run();
+  tr.traceFileStat();
+  return 0;
+}
+
+struct TagCacheDriver {
   TagConfig tag;
-  tag.record_mem(0, memsize , 64, tagsize);
-  tag.record_tc(0,tagsize,cacheblocksize); /// Tag Table
-  tag.record_tc(1,1,cacheblocksize); /// Meta Tag Table
-  tag.record_tc(2,1,cacheblocksize); /// Meta Tag Directory
+  CacheBase* tt,*mtt,*mtd;
+  std::shared_ptr<TagCohPolicy> policy_tt, policy_mtt, policy_mtd;
+  DfiTaggerDataCacheInterface* dc_interface;
+  DfiTaggerOuterPortBase* outer;
+  TagMemory_t *tag_mem;
+  DfiTagger* dfi_tagger;
+  std::array<MonitorBase*,3> acc_monitors;
+  SimpleTracer *trace_monitor;
+  Executor_t* executor;
 
-  tag.init();
+  TagCacheDriver() {
+    tag.record_mem(0, memsize , 64, tagsize);
+    tag.record_tc(0,tagsize,cacheblocksize); /// Tag Table
+    tag.record_tc(1,1,cacheblocksize); /// Meta Tag Table
+    tag.record_tc(2,1,cacheblocksize); /// Meta Tag Directory
 
-  CacheBase* tt = new TT_cache_t("TT") ;
-  CacheBase* mtt = new MTT_cache_t("MTT");
-  CacheBase* mtd = new MTD_cache_t("MTD");
+    tag.init();
 
-  std::shared_ptr<TagCohPolicy> policy_tt =   std::make_shared<TagCohPolicy>();
-  std::shared_ptr<TagCohPolicy> policy_mtt =  std::make_shared<TagCohPolicy>();
-  std::shared_ptr<TagCohPolicy> policy_mtd =  std::make_shared<TagCohPolicy>();
+    tt = new TT_cache_t("TT") ;
+    mtt = new MTT_cache_t("MTT");
+    mtd = new MTD_cache_t("MTD");
 
-  DfiTaggerDataCacheInterface* dc_interface =
-    new DfiTaggerDataCacheInterface(tag);
-  DfiTaggerOuterPortBase* outer =
-    new DfiTaggerOuterPortBase(tag);
+    policy_tt =   std::make_shared<TagCohPolicy>();
+    policy_mtt =  std::make_shared<TagCohPolicy>();
+    policy_mtd =  std::make_shared<TagCohPolicy>();
 
-  TagMemory_t* tag_mem = new TagMemory_t("TagMemory");
+    dc_interface = new DfiTaggerDataCacheInterface(tag);
+    outer = new DfiTaggerOuterPortBase(tag);
 
-  DfiTagger dfi_tagger = DfiTagger(tt, mtt, mtd, 
+    tag_mem = new TagMemory_t("TagMemory");
+
+    dfi_tagger = new DfiTagger(tt, mtt, mtd, 
     policy_tt, policy_mtt, policy_mtd, 
     outer, dc_interface, tag, "TC");
 
-  auto* dfi_outer = dfi_tagger.get_outer();
-  dfi_outer->connect(tag_mem,
-    tag_mem->connect(dfi_outer->get_client(0)),
-    tag_mem->connect(dfi_outer->get_client(1)),
-    tag_mem->connect(dfi_outer->get_client(2)));
+    auto* dfi_outer = dfi_tagger->get_outer();
+    dfi_outer->connect(tag_mem,
+      tag_mem->connect(dfi_outer->get_client(0)),
+      tag_mem->connect(dfi_outer->get_client(1)),
+      tag_mem->connect(dfi_outer->get_client(2)));
 
-  /// @todo Initialize tag cache monitor
-  std::array<MonitorBase*,3> acc_monitors {
-    new SimpleAccMonitor(),
-    new SimpleAccMonitor(),
-    new SimpleAccMonitor()
-  };
+    acc_monitors = std::array<MonitorBase*,3>{
+      new SimpleAccMonitor(),
+      new SimpleAccMonitor(),
+      new SimpleAccMonitor()
+    };
 
-  auto trace_monitor = new SimpleTracer(true);
+    trace_monitor = new SimpleTracer();
 
-  // dfi_tagger.attach_monitor(acc_monitors[0], acc_monitors[1], acc_monitors[2]);
-  dfi_tagger.attach_monitor(trace_monitor, trace_monitor, trace_monitor);
-  tag_mem->attach_monitor(trace_monitor);
+    dfi_tagger->attach_monitor(trace_monitor, trace_monitor, trace_monitor);
+    tag_mem->attach_monitor(trace_monitor);
 
-  test_input(dc_interface);
-
-  delete trace_monitor;
-
-  for (auto& m: acc_monitors) {
-    delete m;
+    executor = new Executor_t(dc_interface);
   }
 
-  delete tag_mem;
+  ~TagCacheDriver() {
+    delete executor;
+    delete trace_monitor;
+    for (auto& m: acc_monitors) {
+      delete m;
+    }
+    delete dfi_tagger;
+    delete tag_mem;
+  }
+
+  Executor_t& get_executor() {
+    return *executor;
+  }
+
+};
+
+
+int main (void ) {
+
+  TagCacheDriver td;
+
+  test_input(td.dc_interface);
+  test_trace("test", td.get_executor());
 
   return 0;
 }

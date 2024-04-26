@@ -25,10 +25,12 @@ endif
 
 UTIL_HEADERS  = $(wildcard util/*.hpp)
 CACHE_HEADERS = $(wildcard cache/*.hpp)
+TC_DRIVER_HEADERS = $(wildcard tc-driver/*.hpp)
 
 CRYPTO_LIB    = cryptopp/libcryptopp.a
 CACHE_OBJS    = cache/metadata.o cache/tagcache.o
 UTIL_OBJS     = util/random.o util/query.o util/monitor.o
+TC_DRIVER_OBJS = tc-driver/tracereader.o
 
 all: libflexicas.a
 
@@ -43,6 +45,8 @@ $(CACHE_OBJS) : %o:%cpp $(CACHE_HEADERS)
 $(UTIL_OBJS) : %o:%cpp $(CACHE_HEADERS) $(UTIL_HEADERS)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
+$(TC_DRIVER_OBJS) : %o:%cpp $(CACHE_HEADERS) $(UTIL_HEADERS) $(TC_DRIVER_HEADERS)
+	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 REGRESSION_TESTS = \
 	c1-l1 \
@@ -80,8 +84,8 @@ clean:
 
 .PHONY: clean
 
-tc-driver/test: tc-driver/test.cpp  $(CACHE_OBJS) $(UTIL_OBJS) $(CRYPTO_LIB) $(CACHE_HEADERS)
-	$(CXX) $(CXXFLAGS) $< $(CACHE_OBJS) $(UTIL_OBJS) $(CRYPTO_LIB) -o $@
+tc-driver/test: tc-driver/test.cpp  $(CACHE_OBJS) $(UTIL_OBJS) $(TC_DRIVER_OBJS) $(CRYPTO_LIB) $(CACHE_HEADERS) 
+	$(CXX) $(CXXFLAGS) $< $(CACHE_OBJS) $(UTIL_OBJS) $(TC_DRIVER_OBJS) $(CRYPTO_LIB) -o $@
 
 tc-regression: tc-driver/test 
 
