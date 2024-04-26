@@ -13,7 +13,7 @@ const int levels = 3; // fixed.
 const int TTAW = 64;
 const int TTIW = 3; // ilog2(8)
 const int TTNW = 16;
-const int TTIOff = 6; // ilog2(64)
+const int TTIOff = 9; // ilog2(64)+ilog2(8)
 
 const bool EnMon = true;
 
@@ -28,7 +28,7 @@ typedef CacheNorm<TTIW,TTNW,TT_metadata_t,TT_data_t,TT_indexer_t, TT_replacer_t,
 const int MTTAW = 64;
 const int MTTIW = 3; // ilog2(8)
 const int MTTNW = 16;
-const int MTTIOff = 6; // ilog2(64)
+const int MTTIOff = 9; // ilog2(64)+ilog2(8)
 
 typedef MetadataMIBroadcast<MTTAW, MTTIW, MTTIOff> MTT_metadata_t;
 typedef Data64B MTT_data_t;
@@ -41,7 +41,7 @@ typedef CacheNorm<MTTIW,MTTNW,MTT_metadata_t,MTT_data_t,MTT_indexer_t, MTT_repla
 const int MTDAW = 64;
 const int MTDIW = 0; // ilog2(1)
 const int MTDNW = 8;
-const int MTDIOff = 6; // ilog2(64)
+const int MTDIOff = 6; // ilog2(64)+ilog2(1)
 
 typedef MetadataMIBroadcast<MTDAW,MTDIW,MTDIOff> MTD_metadata_t;
 typedef Data64B MTD_data_t;
@@ -153,12 +153,14 @@ struct TagCacheDriver {
 };
 
 
-int main (void ) {
+int main (int argc, char* argv[]) {
 
   TagCacheDriver td;
 
-  test_input(td.dc_interface);
-  test_trace("test", td.get_executor());
+  // test_input(td.dc_interface);
+  if (argc >= 2) {
+    test_trace(argv[1], td.get_executor());
+  }
 
   return 0;
 }

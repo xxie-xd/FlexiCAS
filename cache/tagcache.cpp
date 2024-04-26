@@ -275,22 +275,22 @@ void DfiTaggerDataCacheInterface::write_tag(uint64_t addr, dfitag_t tag, uint64_
   /// In case both hit, do nothing
   if (hit_tt && hit_mtt) {}
   /// Otherwise, perform similar operations as read_tag
-  else if (!hit_tt && !hit_mtt) {
+  else if (!hit_tt || !hit_mtt) {
     auto data_mtd_tag = Data64BTagAccessor(data_mtd, tg);
     uint64_t mapbit_mtd = data_mtd_tag.read_tag(smtd_idx, smtd_off, smtd_tgsz);
-    if (!hit_mtd && mapbit_mtd != 0) {
+    if (!hit_mtt && mapbit_mtd != 0) {
       FORCE_READ_ONLY(MTT, mtt);  /// just perform fetching
     }
-    else if (!hit_mtd && mapbit_mtd == 0) {
+    else if (!hit_mtt && mapbit_mtd == 0) {
       CREATE_ONLY(MTT, mtt);
     }
 
     auto data_mtt_tag = Data64BTagAccessor(data_mtt, tg);
     uint64_t mapbit_mtt = data_mtt_tag.read_tag(smtt_idx, smtt_off, smtt_tgsz);
-    if (!hit_mtt && mapbit_mtt != 0) {
+    if (!hit_tt && mapbit_mtt != 0) {
       FORCE_WRITE_ONLY(TT, tt);  /// hook_write moved to position after actual write
     }
-    else if (!hit_mtt && mapbit_mtt == 0) {
+    else if (!hit_tt && mapbit_mtt == 0) {
       CREATE_ONLY(TT, tt);
     }
   }

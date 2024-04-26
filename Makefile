@@ -12,7 +12,7 @@ CXXSTD = --std=c++20
 ifeq ($(MODE), release)
     CXXFLAGS = $(CXXSTD) -O3 -DNDEBUG -I. -fPIC
 else ifeq ($(MODE), debug)
-    CXXFLAGS = $(CXXSTD) -O0 -g -I. -fPIC
+    CXXFLAGS = $(CXXSTD) -O0 -g -I. -fPIC -DDEBUG
 else
     CXXFLAGS = $(CXXSTD) -O2 -I. -fPIC
 endif
@@ -79,7 +79,7 @@ libflexicas.a: $(CACHE_OBJS) $(UTIL_OBJS) $(CRYPTO_LIB)
 
 clean:
 	$(MAKE) clean-regression
-	-rm $(UTIL_OBJS) $(CACHE_OBJS)
+	-rm $(UTIL_OBJS) $(CACHE_OBJS) $(TC_DRIVER_OBJS)
 	$(MAKE) clean-tc-regression
 
 .PHONY: clean
