@@ -1,7 +1,6 @@
 #include "tc-driver/tracereader.hpp"
 #include <cstring>
 
-
 void TraceReader::decodeAndExecute()
 {
   uint64_t t_start;

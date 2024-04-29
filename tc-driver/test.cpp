@@ -87,7 +87,7 @@ struct TagCacheDriver {
   DfiTaggerOuterPortBase* outer;
   TagMemory_t *tag_mem;
   DfiTagger* dfi_tagger;
-  std::array<MonitorBase*,3> acc_monitors;
+  std::array<SimpleAccMonitor*,3> acc_monitors;
   SimpleTracer *trace_monitor;
   Executor_t* executor;
 
@@ -122,7 +122,7 @@ struct TagCacheDriver {
       tag_mem->connect(dfi_outer->get_client(1)),
       tag_mem->connect(dfi_outer->get_client(2)));
 
-    acc_monitors = std::array<MonitorBase*,3>{
+    acc_monitors = std::array<SimpleAccMonitor*,3>{
       new SimpleAccMonitor(),
       new SimpleAccMonitor(),
       new SimpleAccMonitor()
@@ -130,9 +130,17 @@ struct TagCacheDriver {
 
     trace_monitor = new SimpleTracer();
 
+#ifdef DEBUG 
     dfi_tagger->attach_monitor(trace_monitor, trace_monitor, trace_monitor);
+#ifdef DEBUG_TAGMEM
     tag_mem->attach_monitor(trace_monitor);
+#endif
+#endif
 
+    dfi_tagger->attach_monitor(acc_monitors[0], acc_monitors[1], acc_monitors[2]);
+    for (auto& m: acc_monitors) {
+      m->start();
+    }
     executor = new Executor_t(dc_interface);
   }
 
@@ -150,6 +158,54 @@ struct TagCacheDriver {
     return *executor;
   }
 
+  void show_pfc_monitors() const {
+    constexpr int TT = DfiTagger::Hierarchy::TT;
+    constexpr int MTT = DfiTagger::Hierarchy::MTT;
+    constexpr int MTD = DfiTagger::Hierarchy::MTD;
+#define OUTPUT_PFC(HRY) \
+    std::cout << # HRY ": " << std::endl \
+      << # HRY "Acc: " << acc_monitors[HRY]->get_access() << std::endl \
+      << # HRY "Read: " << acc_monitors[HRY]->get_access_read() << std::endl \
+      << # HRY "Write: " << acc_monitors[HRY]->get_access_write() << std::endl \
+      << # HRY "Miss: " << acc_monitors[HRY]->get_miss() << std::endl \
+      << # HRY "MissRead: " << acc_monitors[HRY]->get_miss_read() << std::endl \
+      << # HRY "MissWrite: " << acc_monitors[HRY]->get_miss_write() << std::endl \
+      << # HRY "Invalid: " << acc_monitors[HRY]->get_invalid() << std::endl \
+
+    OUTPUT_PFC(TT);
+    OUTPUT_PFC(MTT);
+    OUTPUT_PFC(MTD);
+
+#undef OUTPUT_PFC
+    uint64_t total_access = 0;
+    uint64_t total_access_read = 0;
+    uint64_t total_access_write = 0;
+    uint64_t total_miss = 0;
+    uint64_t total_read_miss = 0;
+    uint64_t total_write_miss = 0;
+    uint64_t total_invalid = 0;
+
+    for (auto& m: acc_monitors) {
+      total_access += m->get_access();
+      total_access_read += m->get_access_read();
+      total_access_write += m->get_access_write();
+      total_miss += m->get_miss();
+      total_read_miss += m->get_miss_read();
+      total_write_miss += m->get_miss_write();
+      total_invalid += m->get_invalid();
+    }
+
+    std::cout << "Total: " << std::endl
+      << "Total" "Acc: " << total_access << std::endl
+      << "Total" "Read: " << total_access_read << std::endl
+      << "Total" "Write: " << total_access_write << std::endl
+      << "Total" "Miss: " << total_miss << std::endl
+      << "Total" "ReadMiss: " << total_read_miss << std::endl
+      << "Total" "WriteMiss: " << total_write_miss << std::endl
+      << "Total" "Invalid: " << total_invalid << std::endl
+    ;
+  }
+
 };
 
 
@@ -160,6 +216,7 @@ int main (int argc, char* argv[]) {
   // test_input(td.dc_interface);
   if (argc >= 2) {
     test_trace(argv[1], td.get_executor());
+    td.show_pfc_monitors();
   }
 
   return 0;
