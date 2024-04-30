@@ -56,6 +56,7 @@ typedef void TagMemory_delay_t;
 
 typedef TagMemoryModel<TagMemory_data_t, TagMemory_delay_t, EnMon> TagMemory_t;
 
+typedef TraceReader::event_handler_t EventHandler_t ;
 
 struct Executor_t {
   DfiTaggerDataCacheInterface* dc_interface;
@@ -72,8 +73,9 @@ struct Executor_t {
 
 };
 
-int test_trace(std::string stemname,Executor_t& executor) {
+int test_trace(std::string stemname,Executor_t& executor, EventHandler_t eventHandler) {
   TraceReader tr(stemname,executor);
+  tr.setEventHandler(TraceReader::WarmStart, eventHandler);
   tr.run();
   tr.traceFileStat();
   return 0;
@@ -90,6 +92,34 @@ struct TagCacheDriver {
   std::array<SimpleAccMonitor*,3> acc_monitors;
   SimpleTracer *trace_monitor;
   Executor_t* executor;
+  void acc_pfc_start() {
+    for (auto& m: acc_monitors) {
+      m->start();
+    }
+  }
+  void acc_pfc_resume() {
+    for (auto& m: acc_monitors) {
+      m->resume();
+    }
+  }
+
+  void acc_pfc_pause() {
+    for (auto& m: acc_monitors) {
+      m->pause();
+    }
+  }
+
+  void acc_pfc_reset() {
+    for (auto& m: acc_monitors) {
+      m->reset();
+    }
+  }
+
+  void acc_pfc_stop() {
+    for (auto& m: acc_monitors) {
+      m->stop();
+    }
+  }
 
   TagCacheDriver() {
     tag.record_mem(0, memsize , 64, tagsize);
@@ -208,6 +238,13 @@ struct TagCacheDriver {
 
 };
 
+static void TagCacheDriverHdlr(TagCacheDriver& td, TraceReader::Event event) {
+  if (event == TraceReader::WarmStart) {
+    td.acc_pfc_reset();
+    td.acc_pfc_start();
+  }
+}
+
 
 int main (int argc, char* argv[]) {
 
@@ -215,7 +252,9 @@ int main (int argc, char* argv[]) {
 
   // test_input(td.dc_interface);
   if (argc >= 2) {
-    test_trace(argv[1], td.get_executor());
+    test_trace(argv[1], td.get_executor(), [&td](TraceReader::Event event) {
+      TagCacheDriverHdlr(td, event);
+    });
     td.show_pfc_monitors();
   }
 

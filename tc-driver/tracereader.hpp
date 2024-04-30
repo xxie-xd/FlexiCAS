@@ -36,6 +36,7 @@ public:
   TraceReader(std::string pname_, std::function<void(uint64_t, uint64_t, uint64_t, bool, uint64_t)> executor_)
     : TraceReader(pname_){
       setExecutor(executor_);
+      eventDispatch(InitStart);
     }
 
   ~TraceReader() 
@@ -57,9 +58,23 @@ public:
 
   typedef std::function<void(uint64_t, uint64_t, uint64_t, bool, uint64_t)> executor_t;
 
+  enum Event { InitStart, InitEnd, WarmStart, WarmEnd, TraceStart, TraceEnd, SwitchFile, NumOfEvent};
+  typedef std::function<void(Event)> event_handler_t;
+  void setEventHandler(Event event, event_handler_t handler_) {
+    eventHandler.push_back(handler_);
+  }
 protected:
   bool executorSet = false;
   executor_t executor;
+
+  std::vector<event_handler_t> eventHandler;
+
+  void eventDispatch(Event event) {
+    if (event >= NumOfEvent) return;
+    for (auto handler : eventHandler) {
+      handler(event);
+    }
+  }
 
   bool getNextTrace(void) {
     std::string nextTraceSameType(tracePrefix[curTraceType] + "-" +
@@ -69,6 +84,7 @@ protected:
     fTrace.open(nextTraceSameType);
     if (fTrace.is_open()) {
       traceFileCnt[curTraceType] ++;
+      eventDispatch(SwitchFile);
       return true;
     }
     else {
@@ -79,20 +95,31 @@ protected:
 
       if (curTraceType == Init || curTraceType == Warm) {
         curTraceCnt = 0;
-        if (curTraceType == Init) 
+        if (curTraceType == Init) {
+          eventDispatch(InitEnd);
           curTraceType = Warm;
-        else 
+        }
+        else {
+          eventDispatch(WarmEnd);
           curTraceType = Trace;
+        }
 
         curTraceFname = std::string(tracePrefix[curTraceType] + "-" +
           pname + "-" +
           std::to_string(traceFileCnt[curTraceType]) + ".dat");
         
         fTrace.open(curTraceFname);
+        eventDispatch(SwitchFile);
+        if (curTraceType == Warm) {
+          eventDispatch(WarmStart);
+        } else if (curTraceType == Trace) {
+          eventDispatch(TraceStart);
+        }
         return true;
       }
       else if (curTraceType == Trace) {
         // All trace is read.
+        eventDispatch(TraceEnd);
         return false;
       }
       else {
