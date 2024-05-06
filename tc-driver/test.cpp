@@ -2,6 +2,8 @@
 #include "util/cache_type.hpp"
 #include "cache/tagcache.hpp"
 #include "tc-driver/tracereader.hpp"
+#include <random>
+#include <iomanip>
 
 int test_input(DfiTaggerDataCacheInterface* dc_interface);
 
@@ -248,17 +250,29 @@ static void TagCacheDriverHdlr(TagCacheDriver& td, TraceReader::Event event) {
   }
 }
 
+void random_test(uint64_t num, TagConfig& tg, DfiTaggerDataCacheInterface* dc_interface, uint64_t tagsz) ;
+void random_test(uint64_t num, TagConfig& tg, DfiTaggerDataCacheInterface* dc_interface, uint64_t tagsz, unsigned int seed) ;
 
 int main (int argc, char* argv[]) {
 
   TagCacheDriver td;
 
   // test_input(td.dc_interface);
-  if (argc >= 2) {
+  if (argc >= 2 && std::string(argv[1]) != "--") {
     test_trace(argv[1], td.get_executor(), [&td](TraceReader::Event event) {
       TagCacheDriverHdlr(td, event);
     });
     td.show_pfc_monitors();
+  }
+  else if (argc >= 3 && std::string(argv[1]) == "--") {
+    if (argc >= 4) {
+      unsigned int seed = std::stoul(argv[3]);
+      random_test(std::stoull(argv[2]), td.tag, td.dc_interface, tagsize, seed);
+    }
+    else {
+      random_test(std::stoull(argv[2]), td.tag, td.dc_interface, tagsize);
+    }
+    // td.show_pfc_monitors();
   }
 
   return 0;
@@ -287,4 +301,93 @@ int test_input(DfiTaggerDataCacheInterface* dc_interface) {
   flush_test(dc_interface);
 
   return 0;
+}
+
+class RandomTestTC {
+public:
+  std::map<uint64_t, unsigned char> tag_mem_soft;
+  TagConfig& tg;
+  uint64_t tagsz;
+  DfiTaggerDataCacheInterface* dc_interface;
+
+  void read_access(uint64_t addr) {
+    dc_interface->read_tag(addr, nullptr, tagsz);
+    // std::cout << "R" << std::hex << std::setw(8) << std::setfill('0') << (addr >> 3) << std::endl;
+  }
+
+  void write_access(uint64_t addr, uint64_t value) {
+    dc_interface->write_tag(addr, value, nullptr, tagsz);
+
+    tag_mem_soft[addr >> 3] = (value) & ((1<<tagsz)-1);
+    // std::cout << "W" << std::hex << std::setw(8) << std::setfill('0') << (addr >> 3) << "," << value << std::endl;
+  }
+
+  void check(uint64_t addr) {
+    auto ret = dc_interface->read_tag(addr, nullptr, tagsz);
+    if (ret != tag_mem_soft[addr >> 3]) {
+      std::cout << std::hex << "addr: " << addr << " ret: " << ret << " soft: " << (uint64_t)tag_mem_soft[addr >> 3] << std::endl;
+      const auto sa_tt = tg.addr_conv(0, addr);
+      const auto off_tt = tg.tag_offset(0, addr);
+      const auto sa_mtt = tg.addr_conv(1, sa_tt);
+      const auto off_mtt = tg.tag_offset(1, sa_tt);
+      const auto sa_mtd = tg.addr_conv(2, sa_mtt);
+      const auto off_mtd = tg.tag_offset(2, sa_mtt);
+      std::cout << "TT: " << std::hex << std::setw(8) << std::setfill('0') << sa_tt << "," << off_tt << std::endl;
+      std::cout << "MTT: " << std::hex << std::setw(8) << std::setfill('0') << sa_mtt << "," << off_mtt << std::endl;
+      std::cout << "MTD: " << std::hex << std::setw(8) << std::setfill('0') << sa_mtd << "," << off_mtd << std::endl;
+      // for (auto tv : tag_mem_soft) {
+      //   std::cout << std::hex << "W> "<< std::hex << std::setw(8) << std::setfill('0') << tv.first << "=" << (uint64_t)tv.second << std::endl;
+      // }
+      assert(false);
+    }
+  }
+
+  RandomTestTC(TagConfig& tg, DfiTaggerDataCacheInterface* dc_interface, uint64_t tagsz) : tg(tg), tagsz(tagsz), dc_interface(dc_interface) {
+    std::random_device randdev;
+    const auto randdevseed = randdev();
+    std::cout << randdevseed << std::endl;
+    gen.seed(randdevseed);
+  }
+
+  RandomTestTC(TagConfig& tg, DfiTaggerDataCacheInterface* dc_interface, uint64_t tagsz, unsigned int seed ) : tg(tg), tagsz(tagsz), dc_interface(dc_interface) {
+    gen.seed(seed);
+  }
+
+  std::default_random_engine gen;
+  std::uniform_int_distribution<uint64_t> dist_addr{1,15ull<<30};
+  std::uniform_int_distribution<unsigned char> dist_op{0,2};
+  std::uniform_int_distribution<uint64_t> dist_value{0,(1ull<<tagsz)-1};
+  
+  void random_access() {
+    uint64_t addr = dist_addr(gen);
+    unsigned char op = dist_op(gen);
+    switch (op) {
+    case 0:
+      read_access(addr);
+      break;
+    case 1:
+      write_access(addr, dist_value(gen));
+      break;
+    case 2:
+      check(addr);
+      break;
+    }
+  }
+
+  void run(uint64_t num) {
+    for (uint64_t i = 0; i < num; i++) {
+      random_access();
+    }
+  }
+  
+};
+
+void random_test(uint64_t num, TagConfig& tg, DfiTaggerDataCacheInterface* dc_interface, uint64_t tagsz) {
+  RandomTestTC tc(tg, dc_interface, tagsz);
+  tc.run(num);
+}
+
+void random_test(uint64_t num, TagConfig& tg, DfiTaggerDataCacheInterface* dc_interface, uint64_t tagsz, unsigned int seed) {
+  RandomTestTC tc(tg, dc_interface, tagsz, seed);
+  tc.run(num);
 }
