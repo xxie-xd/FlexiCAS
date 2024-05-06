@@ -1,6 +1,7 @@
 #include "cache/tagcache.hpp"
 
 static inline int word_idx(uint64_t addr) { return (addr >> 3) & 0x7; }
+static inline uint64_t blk_addr(uint64_t addr) { return addr & ~0x3full; }
 
 void 
 DfiTaggerInnerPortBase::set_cache_actions(std::array<std::shared_ptr<DfiTaggerCacheActions>,3> &cas){
@@ -82,10 +83,10 @@ DfiTaggerDataCacheInterface::flush_cache(uint64_t *delay) {
 /// @brief 
 /// 
 /// @param addr Raw data cache address
-/// @return uint64_t Truncated address: ( addr >> IOff ) << IOff
+/// @return uint64_t Truncated address: ( addr >> ilog2(sizeof(uint64_t)) ) << ilog2(sizeof(uint64_t))
 ///
 uint64_t DfiTaggerDataCacheInterface::normalize(uint64_t addr) { 
-  return addr & ~0x3full; 
+  return addr & ~0x7ull; 
 }
 
   /***
@@ -137,12 +138,12 @@ DfiTaggerDataCacheInterface::read_tag(uint64_t addr, uint64_t *delay, size_t tag
 #define TEST_READ_ONLY(HRCY,postfix) \
   auto cmd_read_ ## postfix = cache_actions[HRCY]->get_policy()->cmd_for_test_read(); \
   std::tie(meta_ ## postfix, data_ ## postfix, ai_ ## postfix, s_ ## postfix, w_ ## postfix, hit_ ## postfix) \
-    = cache_actions[HRCY]->access_line(s ## postfix, cmd_read_ ## postfix, delay); \
+    = cache_actions[HRCY]->access_line(blk_addr(s ## postfix), cmd_read_ ## postfix, delay); \
 
 #define FORCE_READ_ONLY(HRCY,postfix) \
   auto cmd_forced_read_ ## postfix = cache_actions[HRCY]->get_policy()->cmd_for_read(); \
   std::tie(meta_ ## postfix, data_ ## postfix, ai_ ## postfix, s_ ## postfix, w_ ## postfix, hit_ ## postfix) \
-    = cache_actions[HRCY]->access_line(s ## postfix, cmd_forced_read_ ## postfix, delay); \
+    = cache_actions[HRCY]->access_line(blk_addr(s ## postfix), cmd_forced_read_ ## postfix, delay); \
 
 #define HOOK_READ_ONLY(HRCY,postfix) \
   cache_actions[HRCY]->get_cache()->hook_read(s ## postfix, ai_ ## postfix, s_ ## postfix, w_ ## postfix, hit_ ## postfix, meta_ ## postfix, data_ ## postfix, delay); \
@@ -155,7 +156,7 @@ DfiTaggerDataCacheInterface::read_tag(uint64_t addr, uint64_t *delay, size_t tag
 
 #define CREATE_ONLY(HRCY,postfix) \
   std::tie(meta_ ## postfix, data_ ## postfix, ai_ ## postfix, s_ ## postfix, w_ ## postfix) \
-    = cache_actions[HRCY]->create_line(s ## postfix, &dummy_ ## postfix, delay);
+    = cache_actions[HRCY]->create_line(blk_addr(s ## postfix), &dummy_ ## postfix, delay);
 
   /// Searching order: Bottom (TT) -> Top (MTD) -> Middle (MTT)
 
@@ -249,12 +250,12 @@ void DfiTaggerDataCacheInterface::write_tag(uint64_t addr, dfitag_t tag, uint64_
 #define TEST_WRITE_ONLY(HRCY,postfix) \
   auto cmd_write_ ## postfix = cache_actions[HRCY]->get_policy()->cmd_for_test_write(); \
   std::tie(meta_ ## postfix, data_ ## postfix, ai_ ## postfix, s_ ## postfix, w_ ## postfix, hit_ ## postfix) \
-    = cache_actions[HRCY]->access_line(s ## postfix, cmd_write_ ## postfix, delay); \
+    = cache_actions[HRCY]->access_line(blk_addr(s ## postfix), cmd_write_ ## postfix, delay); \
 
 #define FORCE_WRITE_ONLY(HRCY,postfix) \
   auto cmd_forced_write_ ## postfix = cache_actions[HRCY]->get_policy()->cmd_for_write(); \
   std::tie(meta_ ## postfix, data_ ## postfix, ai_ ## postfix, s_ ## postfix, w_ ## postfix, hit_ ## postfix) \
-    = cache_actions[HRCY]->access_line(s ## postfix, cmd_forced_write_ ## postfix, delay); \
+    = cache_actions[HRCY]->access_line(blk_addr(s ## postfix), cmd_forced_write_ ## postfix, delay); \
 
 #define HOOK_WRITE_ONLY(HRCY,postfix) \
   meta_ ## postfix -> to_dirty(); \

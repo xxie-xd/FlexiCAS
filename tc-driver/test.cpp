@@ -13,11 +13,12 @@ const int levels = 3; // fixed.
 const int TTAW = 64;
 const int TTIW = 3; // ilog2(8)
 const int TTNW = 16;
-const int TTIOff = 9; // ilog2(64)+ilog2(8)
+const int TTIOff = 6; // ilog2(64)
+const int TTTOfst = 9; // ilog2(64)+ilog2(8)
 
 const bool EnMon = true;
 
-typedef MetadataMIBroadcast<TTAW,TTIW,TTIOff> TT_metadata_t;
+typedef MetadataMIBroadcast<TTAW,TTIW,TTTOfst> TT_metadata_t;
 typedef Data64B TT_data_t;
 typedef IndexNorm<TTIW,TTIOff> TT_indexer_t;
 typedef ReplaceLRU<TTIW,TTNW,true> TT_replacer_t;
@@ -28,9 +29,10 @@ typedef CacheNorm<TTIW,TTNW,TT_metadata_t,TT_data_t,TT_indexer_t, TT_replacer_t,
 const int MTTAW = 64;
 const int MTTIW = 3; // ilog2(8)
 const int MTTNW = 16;
-const int MTTIOff = 9; // ilog2(64)+ilog2(8)
+const int MTTIOff = 6; // ilog2(64)
+const int MTTTOfst = 9; // ilog2(64)+ilog2(8)
 
-typedef MetadataMIBroadcast<MTTAW, MTTIW, MTTIOff> MTT_metadata_t;
+typedef MetadataMIBroadcast<MTTAW, MTTIW, MTTTOfst> MTT_metadata_t;
 typedef Data64B MTT_data_t;
 typedef IndexNorm<MTTIW,MTTIOff> MTT_indexer_t;
 typedef ReplaceLRU<MTTIW,MTTNW,true> MTT_replacer_t;
@@ -41,9 +43,10 @@ typedef CacheNorm<MTTIW,MTTNW,MTT_metadata_t,MTT_data_t,MTT_indexer_t, MTT_repla
 const int MTDAW = 64;
 const int MTDIW = 0; // ilog2(1)
 const int MTDNW = 8;
-const int MTDIOff = 6; // ilog2(64)+ilog2(1)
+const int MTDIOff = 6; // ilog2(64)
+const int MTDTOfst = 6; // ilog2(64)+ilog2(1)
 
-typedef MetadataMIBroadcast<MTDAW,MTDIW,MTDIOff> MTD_metadata_t;
+typedef MetadataMIBroadcast<MTDAW,MTDIW,MTDTOfst> MTD_metadata_t;
 typedef Data64B MTD_data_t;
 typedef IndexNorm<MTDIW,MTDIOff> MTD_indexer_t;
 typedef ReplaceLRU<MTDIW,MTDNW,true> MTD_replacer_t;
