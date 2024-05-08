@@ -257,6 +257,22 @@ int main (int argc, char* argv[]) {
 
   TagCacheDriver td;
 
+  if (argc < 2 || std::string(argv[argc-1]) == "--help" || std::string(argv[argc-1]) == "-h") {
+    std::cout << "HDFI Tag Cache Driver" << std::endl;
+    // Print help message.
+    std::cout << "Usage: " << argv[0] << " <tracefile>" << " to run on tracefile" << std::endl;
+    std::cout << "  or: " << argv[0] << " -- <num> [seed]" << " to perform random test for upto num read/write/check operations."
+      " seed is optional, if not provided a random seed is used." <<  std::endl;
+
+    std::cout << "Tracefile structures: " << std::endl;
+    std::cout << "{init,warm,trace}-<tracefile>-N.dat" << std::endl;
+    std::cout << "  init: init trace file" << std::endl;
+    std::cout << "  warm: warm start trace file" << std::endl;
+    std::cout << "  trace: trace file" << std::endl;
+    std::cout << "  N: number of tracefile" << std::endl;
+    return 0;
+  }
+
   // test_input(td.dc_interface);
   if (argc >= 2 && std::string(argv[1]) != "--") {
     test_trace(argv[1], td.get_executor(), [&td](TraceReader::Event event) {
