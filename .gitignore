@@ -10,4 +10,4 @@ regression/*.out
 .vscode
 compile_commands.json
 doxygen
-tc-driver/test
+tc-driver/driver

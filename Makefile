@@ -84,10 +84,10 @@ clean:
 
 .PHONY: clean
 
-tc-driver/test: tc-driver/test.cpp  $(CACHE_OBJS) $(UTIL_OBJS) $(TC_DRIVER_OBJS) $(CRYPTO_LIB) $(CACHE_HEADERS) 
+tc-driver/driver: tc-driver/driver.cpp  $(CACHE_OBJS) $(UTIL_OBJS) $(TC_DRIVER_OBJS) $(CRYPTO_LIB) $(CACHE_HEADERS) 
 	$(CXX) $(CXXFLAGS) $< $(CACHE_OBJS) $(UTIL_OBJS) $(TC_DRIVER_OBJS) $(CRYPTO_LIB) -o $@
 
-tc-regression: tc-driver/test 
+tc-regression: tc-driver/driver 
 
 clean-tc-regression:
-	-rm tc-driver/test
+	-rm tc-driver/driver
