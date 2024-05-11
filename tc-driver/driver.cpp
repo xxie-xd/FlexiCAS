@@ -7,16 +7,16 @@
 
 int test_input(DfiTaggerDataCacheInterface* dc_interface);
 
-const uint64_t memsize = (16lu << 30); /// 16GiB Memory Region
+const uint64_t memsize = (512llu << 20); /// 512MiB Memory Region
 const uint64_t tagsize = 2;
 const uint64_t cacheblocksize = 64;
 const int levels = 3; // fixed.
 
 const int TTAW = 64;
-const int TTIW = 3; // ilog2(8)
+const int TTIW = 0; // ilog2(1)
 const int TTNW = 16;
 const int TTIOff = 6; // ilog2(64)
-const int TTTOfst = 9; // ilog2(64)+ilog2(8)
+const int TTTOfst = 6; // ilog2(64)+ilog2(1)
 
 const bool EnMon = true;
 
@@ -29,10 +29,10 @@ typedef void TT_delay_t;
 typedef CacheNorm<TTIW,TTNW,TT_metadata_t,TT_data_t,TT_indexer_t, TT_replacer_t, TT_delay_t, EnMon> TT_cache_t ;
 
 const int MTTAW = 64;
-const int MTTIW = 3; // ilog2(8)
+const int MTTIW = 0; // ilog2(1)
 const int MTTNW = 16;
 const int MTTIOff = 6; // ilog2(64)
-const int MTTTOfst = 9; // ilog2(64)+ilog2(8)
+const int MTTTOfst = 6; // ilog2(64)+ilog2(1)
 
 typedef MetadataMIBroadcast<MTTAW, MTTIW, MTTTOfst> MTT_metadata_t;
 typedef Data64B MTT_data_t;
@@ -44,7 +44,7 @@ typedef CacheNorm<MTTIW,MTTNW,MTT_metadata_t,MTT_data_t,MTT_indexer_t, MTT_repla
 
 const int MTDAW = 64;
 const int MTDIW = 0; // ilog2(1)
-const int MTDNW = 8;
+const int MTDNW = 1;
 const int MTDIOff = 6; // ilog2(64)
 const int MTDTOfst = 6; // ilog2(64)+ilog2(1)
 
@@ -98,9 +98,9 @@ struct TagCacheDriver {
   SimpleTracer *trace_monitor;
   Executor_t* executor;
   void acc_pfc_start() {
-    for (auto& m: acc_monitors) {
-      m->start();
-    }
+    acc_monitors[DfiTagger::TT]->start();
+    acc_monitors[DfiTagger::MTT]->start();
+    acc_monitors[DfiTagger::MTD]->stop();
   }
   void acc_pfc_resume() {
     for (auto& m: acc_monitors) {
@@ -173,9 +173,9 @@ struct TagCacheDriver {
 #endif
 
     dfi_tagger->attach_monitor(acc_monitors[0], acc_monitors[1], acc_monitors[2]);
-    for (auto& m: acc_monitors) {
-      m->start();
-    }
+    acc_monitors[DfiTagger::TT]->start();
+    acc_monitors[DfiTagger::MTT]->start();
+    acc_monitors[DfiTagger::MTD]->stop(); /// Disable MTD acc monitor as it is an inlined register now.
     executor = new Executor_t(dc_interface);
   }
 
@@ -209,7 +209,6 @@ struct TagCacheDriver {
 
     OUTPUT_PFC(TT);
     OUTPUT_PFC(MTT);
-    OUTPUT_PFC(MTD);
 
 #undef OUTPUT_PFC
     uint64_t total_access = 0;
@@ -355,6 +354,7 @@ public:
       //   std::cout << std::hex << "W> "<< std::hex << std::setw(8) << std::setfill('0') << tv.first << "=" << (uint64_t)tv.second << std::endl;
       // }
       assert(false);
+      exit(-1);
     }
   }
 
@@ -370,7 +370,7 @@ public:
   }
 
   std::default_random_engine gen;
-  std::uniform_int_distribution<uint64_t> dist_addr{1,15ull<<30};
+  std::uniform_int_distribution<uint64_t> dist_addr{1,((512ull<<20) - (16 <<20))};
   std::uniform_int_distribution<unsigned char> dist_op{0,2};
   std::uniform_int_distribution<uint64_t> dist_value{0,(1ull<<tagsz)-1};
   

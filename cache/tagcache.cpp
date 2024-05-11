@@ -99,7 +99,7 @@ uint64_t DfiTaggerDataCacheInterface::normalize(uint64_t addr) {
   (loaded into MTT cache if does not exist) 
   to see if the corresponding tag table entry is all zero.
   * MTT handles access to the MTT in the memory in parallel with the tag table.
-  * Searching in order TT -> MTD -> MTT
+  * Searching in order MTD -> MTT -> TT
   * hook_read is a fetch when (meta != nullptr) && !hit
   see: http://ieeexplore.ieee.org/document/7546472/
   */
@@ -158,18 +158,11 @@ DfiTaggerDataCacheInterface::read_tag(uint64_t addr, uint64_t *delay, size_t tag
   std::tie(meta_ ## postfix, data_ ## postfix, ai_ ## postfix, s_ ## postfix, w_ ## postfix) \
     = cache_actions[HRCY]->create_line(blk_addr(s ## postfix), &dummy_ ## postfix, delay);
 
-  /// Searching order: Bottom (TT) -> Top (MTD) -> Middle (MTT)
-
-  TEST_READ(TT,tt);
-  TEST_READ(MTT,mtt);
-
+  /// Searching order: Top (MTD) -> Middle (MTT) -> Bottom (TT)
 
   /// do nothing if both hit
-  if (hit_tt && hit_mtt) {}
-  /// If the Tracker fails to find a matching tag table entry,
-  /// it checks the MTD and the matching MTT entry
-  else if (!hit_tt || !hit_mtt) {
-    FORCE_READ(MTD, mtd);
+
+    FORCE_READ_ONLY(MTD, mtd);
 
   /// @todo Figure out whether we should load MTT if corresponding MTD is 0? I guess not.
   /// @todo Need to restrict data_mtd of Derived type of Data64B;
@@ -177,10 +170,10 @@ DfiTaggerDataCacheInterface::read_tag(uint64_t addr, uint64_t *delay, size_t tag
     auto data_tag_mtd = Data64BTagAccessor(data_mtd, tg);
     uint64_t mapbit_mtd = data_tag_mtd.read_tag(smtd_idx, smtd_off, smtd_tgsz);
 
-    if (!hit_mtt && mapbit_mtd != 0) {
-      FORCE_READ_ONLY(MTT, mtt); /// just perform fetching
+    if (mapbit_mtd != 0) {
+      FORCE_READ(MTT, mtt); /// just perform fetching
     }
-    else if (!hit_mtt && mapbit_mtd == 0) {
+    else if (mapbit_mtd == 0) {
       CREATE_ONLY(MTT, mtt);
     }
 
@@ -192,14 +185,14 @@ DfiTaggerDataCacheInterface::read_tag(uint64_t addr, uint64_t *delay, size_t tag
 
   /// else, fetch the tag table entry from memory
   /// @todo Figure out if there should be a FORCE_READ_ONLY instead of FORCE_READ
-    if (!hit_tt && mapbit_mtt != 0) {
-      FORCE_READ_ONLY(TT, tt);
+    if (mapbit_mtt != 0) {
+      FORCE_READ(TT, tt);
     }
-    else if (!hit_tt && mapbit_mtt == 0) {
+    else if (mapbit_mtt == 0) {
       CREATE_ONLY(TT, tt);
     }
 
-  }
+
 
   auto data_tag_tt = Data64BTagAccessor(data_tt, tg);
   uint64_t tag_tt = data_tag_tt.read_tag(stt_idx, stt_off, stt_tgsz);
@@ -264,37 +257,13 @@ void DfiTaggerDataCacheInterface::write_tag(uint64_t addr, dfitag_t tag, uint64_
   /// Search for tag table entry first
   /// which will introduce some read accesses.
 
-  TEST_WRITE_ONLY(TT, tt);
-  HOOK_READ_ONLY(TT, tt); /// This write access only tests if the tag table entry is valid,
-                          /// so categorize it as read access.
+  FORCE_READ_ONLY(MTD, mtd); /// just access MTD, as MTD now is a register
 
-  TEST_READ(MTT, mtt);  /// Together with hook_read
+  /// Fetch MTT and TT entry from memory when performing write
+    FORCE_WRITE_ONLY(MTT, mtt);
 
-  FORCE_READ(MTD, mtd); /// Together with hook_read
+    FORCE_WRITE_ONLY(TT, tt);  
 
-  /// Load entry first:
-  /// In case both hit, do nothing
-  if (hit_tt && hit_mtt) {}
-  /// Otherwise, perform similar operations as read_tag
-  else if (!hit_tt || !hit_mtt) {
-    auto data_mtd_tag = Data64BTagAccessor(data_mtd, tg);
-    uint64_t mapbit_mtd = data_mtd_tag.read_tag(smtd_idx, smtd_off, smtd_tgsz);
-    if (!hit_mtt && mapbit_mtd != 0) {
-      FORCE_READ_ONLY(MTT, mtt);  /// just perform fetching
-    }
-    else if (!hit_mtt && mapbit_mtd == 0) {
-      CREATE_ONLY(MTT, mtt);
-    }
-
-    auto data_mtt_tag = Data64BTagAccessor(data_mtt, tg);
-    uint64_t mapbit_mtt = data_mtt_tag.read_tag(smtt_idx, smtt_off, smtt_tgsz);
-    if (!hit_tt && mapbit_mtt != 0) {
-      FORCE_WRITE_ONLY(TT, tt);  /// hook_write moved to position after actual write
-    }
-    else if (!hit_tt && mapbit_mtt == 0) {
-      CREATE_ONLY(TT, tt);
-    }
-  }
 
   /// loading complete, perform writing
   auto data_tt_tag = Data64BTagAccessor(data_tt, tg);
@@ -316,7 +285,6 @@ void DfiTaggerDataCacheInterface::write_tag(uint64_t addr, dfitag_t tag, uint64_
 
   auto data_mtd_tag = Data64BTagAccessor(data_mtd, tg);
   data_mtd_tag.write_tag(smtd_idx, smtd_off, !data_mtt_empty_new, smtd_tgsz);
-  HOOK_WRITE_ONLY(MTD, mtd);
 
 #undef HOOK_WRITE_ONLY
 #undef FORCE_WRITE_ONLY
