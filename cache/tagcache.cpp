@@ -174,7 +174,8 @@ DfiTaggerDataCacheInterface::read_tag(uint64_t addr, uint64_t *delay, size_t tag
       FORCE_READ(MTT, mtt); /// just perform fetching
     }
     else if (mapbit_mtd == 0) {
-      CREATE_ONLY(MTT, mtt);
+      data_mtt = &dummy_mtt; /// on an empty MTT entry, use a dummy data block instead of creating one
+                             /// , of course next time it will miss again.
     }
 
   /// if the corresponding tag table entry is all zero,
@@ -189,7 +190,7 @@ DfiTaggerDataCacheInterface::read_tag(uint64_t addr, uint64_t *delay, size_t tag
       FORCE_READ(TT, tt);
     }
     else if (mapbit_mtt == 0) {
-      CREATE_ONLY(TT, tt);
+      data_tt = &dummy_tt; /// same with empty MTT entry.
     }
 
 
