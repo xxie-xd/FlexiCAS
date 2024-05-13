@@ -163,9 +163,7 @@ DfiTaggerDataCacheInterface::read_tag(uint64_t addr, uint64_t *delay, size_t tag
   /// do nothing if both hit
 
     FORCE_READ_ONLY(MTD, mtd);
-#ifdef DEBUG
     HOOK_READ_ONLY(MTD, mtd);
-#endif
 
   /// @todo Figure out whether we should load MTT if corresponding MTD is 0? I guess not.
   /// @todo Need to restrict data_mtd of Derived type of Data64B;
@@ -265,9 +263,7 @@ void DfiTaggerDataCacheInterface::write_tag(uint64_t addr, dfitag_t tag, uint64_
   /// which will introduce some read accesses.
 
   FORCE_READ_ONLY(MTD, mtd); /// just access MTD, as MTD now is a register
-#ifdef DEBUG
   HOOK_READ_ONLY(MTD, mtd);
-#endif 
 
   /// Fetch MTT and TT entry from memory when performing write
     FORCE_WRITE_ONLY(MTT, mtt);
@@ -297,11 +293,7 @@ void DfiTaggerDataCacheInterface::write_tag(uint64_t addr, dfitag_t tag, uint64_
 
   auto data_mtd_tag = Data64BTagAccessor(data_mtd, tg);
   data_mtd_tag.write_tag(smtd_idx, smtd_off, !data_mtt_empty_new, smtd_tgsz);
-#ifndef DEBUG
-  SET_DIRTY_ONLY(MTD, mtd);
-#else 
   HOOK_WRITE_ONLY(MTD, mtd);
-#endif
 
 #undef HOOK_WRITE_ONLY
 #undef SET_DIRTY_ONLY

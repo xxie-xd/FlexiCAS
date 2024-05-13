@@ -101,7 +101,7 @@ struct TagCacheDriver {
   void acc_pfc_start() {
     acc_monitors[DfiTagger::TT]->start();
     acc_monitors[DfiTagger::MTT]->start();
-    acc_monitors[DfiTagger::MTD]->stop();
+    acc_monitors[DfiTagger::MTD]->start();
   }
   void acc_pfc_resume() {
     for (auto& m: acc_monitors) {
@@ -176,7 +176,7 @@ struct TagCacheDriver {
     dfi_tagger->attach_monitor(acc_monitors[0], acc_monitors[1], acc_monitors[2]);
     acc_monitors[DfiTagger::TT]->start();
     acc_monitors[DfiTagger::MTT]->start();
-    acc_monitors[DfiTagger::MTD]->stop(); /// Disable MTD acc monitor as it is an inlined register now.
+    acc_monitors[DfiTagger::MTD]->start(); 
     executor = new Executor_t(dc_interface);
   }
 
@@ -210,6 +210,7 @@ struct TagCacheDriver {
 
     OUTPUT_PFC(TT);
     OUTPUT_PFC(MTT);
+    OUTPUT_PFC(MTD);
 
 #undef OUTPUT_PFC
     uint64_t total_access = 0;
