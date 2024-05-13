@@ -26,7 +26,7 @@ typedef IndexNorm<TTIW,TTIOff> TT_indexer_t;
 typedef ReplaceLRU<TTIW,TTNW,true> TT_replacer_t;
 typedef void TT_delay_t;
 
-typedef CacheNorm<TTIW,TTNW,TT_metadata_t,TT_data_t,TT_indexer_t, TT_replacer_t, TT_delay_t, EnMon> TT_cache_t ;
+typedef DfiCacheNorm<TTIW,TTNW,TT_metadata_t,TT_data_t,TT_indexer_t, TT_replacer_t, TT_delay_t, EnMon> TT_cache_t ;
 
 const int MTTAW = 64;
 const int MTTIW = 2; // ilog2(4)
@@ -40,7 +40,7 @@ typedef IndexNorm<MTTIW,MTTIOff> MTT_indexer_t;
 typedef ReplaceLRU<MTTIW,MTTNW,true> MTT_replacer_t;
 typedef void MTT_delay_t;
 
-typedef CacheNorm<MTTIW,MTTNW,MTT_metadata_t,MTT_data_t,MTT_indexer_t, MTT_replacer_t, MTT_delay_t, EnMon> MTT_cache_t ;
+typedef DfiCacheNorm<MTTIW,MTTNW,MTT_metadata_t,MTT_data_t,MTT_indexer_t, MTT_replacer_t, MTT_delay_t, EnMon> MTT_cache_t ;
 
 const int MTDAW = 64;
 const int MTDIW = 0; // ilog2(1)
@@ -54,7 +54,7 @@ typedef IndexNorm<MTDIW,MTDIOff> MTD_indexer_t;
 typedef ReplaceLRU<MTDIW,MTDNW,true> MTD_replacer_t;
 typedef void MTD_delay_t;
 
-typedef CacheNorm<MTDIW,MTDNW,MTD_metadata_t,MTD_data_t,MTD_indexer_t, MTD_replacer_t, MTD_delay_t, EnMon> MTD_cache_t ;
+typedef DfiCacheNorm<MTDIW,MTDNW,MTD_metadata_t,MTD_data_t,MTD_indexer_t, MTD_replacer_t, MTD_delay_t, EnMon> MTD_cache_t ;
 
 typedef Data64B TagMemory_data_t;
 typedef void TagMemory_delay_t;

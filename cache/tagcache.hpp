@@ -423,6 +423,18 @@ public:
   }
 };
 
+/// Derived class from CacheNorm
+
+template<int IW, int NW, typename MT, typename DT, typename IDX, typename RPC, typename DLY, bool EnMon>
+class DfiCacheNorm : public CacheNorm<IW, NW, MT, DT, IDX, RPC, DLY, EnMon> {
+protected:
+  using CacheMonitorSupport::monitors;
+public:
+  DfiCacheNorm(std::string name) : CacheNorm<IW, NW, MT, DT, IDX, RPC, DLY, EnMon>(name) {}
+  virtual ~DfiCacheNorm() {}
+
+};
+
 
 /// Wrapper Class for interaction with upper level data caches.
 
