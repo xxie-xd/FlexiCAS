@@ -209,6 +209,7 @@ struct TagCacheDriver {
       << # HRY "MissRead: " << acc_monitors[HRY]->get_miss_read() << std::endl \
       << # HRY "MissWrite: " << acc_monitors[HRY]->get_miss_write() << std::endl \
       << # HRY "Invalid: " << acc_monitors[HRY]->get_invalid() << std::endl \
+      << # HRY "Writeback: " << acc_monitors[HRY]->get_writeback() << std::endl \
 
     OUTPUT_PFC(TT);
     OUTPUT_PFC(MTT);
@@ -222,6 +223,7 @@ struct TagCacheDriver {
     uint64_t total_read_miss = 0;
     uint64_t total_write_miss = 0;
     uint64_t total_invalid = 0;
+    uint64_t total_writeback = 0;
 
     for (auto& m: acc_monitors) {
       total_access += m->get_access();
@@ -231,6 +233,7 @@ struct TagCacheDriver {
       total_read_miss += m->get_miss_read();
       total_write_miss += m->get_miss_write();
       total_invalid += m->get_invalid();
+      total_writeback += m->get_writeback();
     }
 
     std::cout << "Total: " << std::endl
@@ -241,6 +244,7 @@ struct TagCacheDriver {
       << "Total" "ReadMiss: " << total_read_miss << std::endl
       << "Total" "WriteMiss: " << total_write_miss << std::endl
       << "Total" "Invalid: " << total_invalid << std::endl
+      << "Total" "Writeback: " << total_writeback << std::endl
     ;
 
     std::cout << "TT+TM0: " << std::endl
@@ -248,9 +252,9 @@ struct TagCacheDriver {
       << "TT+TM0" "Read: " << acc_monitors[DfiTagger::TT]->get_access_read() + acc_monitors[DfiTagger::MTT]->get_access_read() << std::endl
       << "TT+TM0" "Write: " << acc_monitors[DfiTagger::TT]->get_access_write() + acc_monitors[DfiTagger::MTT]->get_access_write() << std::endl
       << "TT+TM0" "Miss: " << acc_monitors[DfiTagger::TT]->get_miss() + acc_monitors[DfiTagger::MTT]->get_miss() << std::endl
-      << "TT+TM0" "Writeback: " << acc_monitors[DfiTagger::TT]->get_invalid() + acc_monitors[DfiTagger::MTT]->get_invalid() << std::endl
+      << "TT+TM0" "Writeback: " << acc_monitors[DfiTagger::TT]->get_writeback() + acc_monitors[DfiTagger::MTT]->get_writeback() << std::endl
       << "TT+TM0" "MemAcc: " << acc_monitors[DfiTagger::TT]->get_miss() + acc_monitors[DfiTagger::MTT]->get_miss() + 
-                                acc_monitors[DfiTagger::TT]->get_invalid() + acc_monitors[DfiTagger::MTT]->get_invalid() << std::endl
+                                acc_monitors[DfiTagger::TT]->get_writeback() + acc_monitors[DfiTagger::MTT]->get_writeback() << std::endl
     ;
   }
 
@@ -261,6 +265,14 @@ static void TagCacheDriverHdlr(TagCacheDriver& td, TraceReader::Event event) {
     td.acc_pfc_reset();
     td.acc_pfc_start();
   }
+  // else if (event == TraceReader::WarmEnd) {
+  //   td.show_pfc_monitors();
+  //   std::cout << "======== Warm End ========" << std::endl;
+  // }
+  // else if (event == TraceReader::TraceStart) {
+  //   td.acc_pfc_reset();
+  //   td.acc_pfc_start();
+  // }
 }
 
 void random_test(uint64_t num, TagConfig& tg, DfiTaggerDataCacheInterface* dc_interface, uint64_t tagsz) ;

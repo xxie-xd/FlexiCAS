@@ -21,6 +21,7 @@ public:
   virtual void read(uint64_t cache_id, uint64_t addr, int32_t ai, int32_t s, int32_t w, bool hit, const CMMetadataBase *meta, const CMDataBase *data) = 0;
   virtual void write(uint64_t cache_id, uint64_t addr, int32_t ai, int32_t s, int32_t w, bool hit, const CMMetadataBase *meta, const CMDataBase *data) = 0;
   virtual void invalid(uint64_t cache_id, uint64_t addr, int32_t ai, int32_t s, int32_t w, const CMMetadataBase *meta, const CMDataBase *data) = 0;
+  virtual void writeback(uint64_t cache_id, uint64_t addr, int32_t ai, int32_t s, int32_t w, const CMMetadataBase *meta, const CMDataBase *data) = 0;
 
   // control
   virtual void start() = 0;    // start the monitor, assuming the monitor is just initialized
@@ -101,7 +102,10 @@ public:
 
   virtual void hook_manage(uint64_t addr, int32_t ai, int32_t s, int32_t w, bool hit, bool evict, bool writeback, const CMMetadataBase *meta, const CMDataBase *data, uint64_t *delay, unsigned int genre = 0) {
     if(hit && evict) {
-      if constexpr (EnMon) for(auto m:monitors) m->invalid(id, addr, ai, s, w, meta, data);
+      if constexpr (EnMon) for(auto m:monitors) {
+        m->invalid(id, addr, ai, s, w, meta, data);
+        if(writeback) m->writeback(id, addr, ai, s, w, meta, data);
+      }
     }
     if constexpr (!C_VOID(DLY)) timer->manage(addr, ai, s, w, hit, evict, writeback, delay);
   }
@@ -112,7 +116,7 @@ public:
 class SimpleAccMonitor : public MonitorBase
 {
 protected:
-  uint64_t cnt_access, cnt_miss, cnt_write, cnt_write_miss, cnt_invalid;
+  uint64_t cnt_access, cnt_miss, cnt_write, cnt_write_miss, cnt_invalid, cnt_writeback;
   bool active;
 
 public:
@@ -142,6 +146,11 @@ public:
     cnt_invalid++;
   }
 
+  virtual void writeback(uint64_t cache_id, uint64_t addr, int32_t ai, int32_t s, int32_t w, const CMMetadataBase *meta, const CMDataBase *data) {
+    if(!active) return;
+    cnt_writeback++;
+  }
+
   virtual void start() { active = true;  }
   virtual void stop()  { active = false; }
   virtual void pause() { active = false; }
@@ -152,6 +161,7 @@ public:
     cnt_write = 0;
     cnt_write_miss = 0;
     cnt_invalid = 0;
+    cnt_writeback = 0;
     active = false;
   }
 
@@ -163,6 +173,7 @@ public:
   uint64_t get_miss_read() { return cnt_miss - cnt_write_miss; }
   uint64_t get_miss_write() { return cnt_write_miss; }
   uint64_t get_invalid() { return cnt_invalid; }
+  uint64_t get_writeback() { return cnt_writeback; }
 };
 
 // a tracer
@@ -179,6 +190,7 @@ public:
   virtual void read(uint64_t cache_id, uint64_t addr, int32_t ai, int32_t s, int32_t w, bool hit, const CMMetadataBase *meta, const CMDataBase *data);
   virtual void write(uint64_t cache_id, uint64_t addr, int32_t ai, int32_t s, int32_t w, bool hit, const CMMetadataBase *meta, const CMDataBase *data);
   virtual void invalid(uint64_t cache_id, uint64_t addr, int32_t ai, int32_t s, int32_t w, const CMMetadataBase *meta, const CMDataBase *data);
+  virtual void writeback(uint64_t cache_id, uint64_t addr, int32_t ai, int32_t s, int32_t w, const CMMetadataBase *meta, const CMDataBase *data);
 
   virtual void start() { active = true;  }
   virtual void stop()  { active = false; }

@@ -560,12 +560,12 @@ public:
   virtual ~DfiAccMonitor() {}
 
   virtual void write(uint64_t cache_id, uint64_t addr, int32_t ai, int32_t s, int32_t w, bool hit, const CMMetadataBase *meta, const CMDataBase *data) override {
-  if(!active) return;
-  cnt_write++;
-  if(!hit) {
-    cnt_write_miss++;
+    if(!active) return;
+    cnt_write++;
+    if(!hit) {
+      cnt_write_miss++;
+    }
   }
-}
 };
 
 
