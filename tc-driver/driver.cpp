@@ -62,6 +62,8 @@ typedef void TagMemory_delay_t;
 typedef TagMemoryModel<TagMemory_data_t, TagMemory_delay_t, EnMon> TagMemory_t;
 typedef DfiAccMonitor TagAccMonitor_t;
 
+typedef TagCohPolicy TagCohPolicy_t;
+
 typedef TraceReader::event_handler_t EventHandler_t ;
 
 struct Executor_t {
@@ -90,7 +92,7 @@ int test_trace(std::string stemname,Executor_t& executor, EventHandler_t eventHa
 struct TagCacheDriver {
   TagConfig tag;
   CacheBase* tt,*mtt,*mtd;
-  std::shared_ptr<TagCohPolicy> policy_tt, policy_mtt, policy_mtd;
+  std::shared_ptr<TagCohPolicy_t> policy_tt, policy_mtt, policy_mtd;
   DfiTaggerDataCacheInterface* dc_interface;
   DfiTaggerOuterPortBase* outer;
   TagMemory_t *tag_mem;
@@ -139,9 +141,9 @@ struct TagCacheDriver {
     mtt = new MTT_cache_t("MTT");
     mtd = new MTD_cache_t("MTD");
 
-    policy_tt =   std::make_shared<TagCohPolicy>();
-    policy_mtt =  std::make_shared<TagCohPolicy>();
-    policy_mtd =  std::make_shared<TagCohPolicy>();
+    policy_tt =   std::make_shared<TagCohPolicy_t>();
+    policy_mtt =  std::make_shared<TagCohPolicy_t>();
+    policy_mtd =  std::make_shared<TagCohPolicy_t>();
 
     dc_interface = new DfiTaggerDataCacheInterface(tag);
     outer = new DfiTaggerOuterPortBase(tag);
