@@ -271,8 +271,10 @@ void DfiTaggerDataCacheInterface::write_tag(uint64_t addr, dfitag_t tag, uint64_
 
   /// Fetch MTT and TT entry from memory when performing write
     FORCE_WRITE_ONLY(MTT, mtt);
+    HOOK_READ_ONLY(MTT, mtt);
 
     FORCE_WRITE_ONLY(TT, tt);  
+    HOOK_READ_ONLY(TT, tt);
 
 
   /// loading complete, perform writing

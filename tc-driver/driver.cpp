@@ -60,6 +60,7 @@ typedef Data64B TagMemory_data_t;
 typedef void TagMemory_delay_t;
 
 typedef TagMemoryModel<TagMemory_data_t, TagMemory_delay_t, EnMon> TagMemory_t;
+typedef DfiAccMonitor TagAccMonitor_t;
 
 typedef TraceReader::event_handler_t EventHandler_t ;
 
@@ -94,7 +95,7 @@ struct TagCacheDriver {
   DfiTaggerOuterPortBase* outer;
   TagMemory_t *tag_mem;
   DfiTagger* dfi_tagger;
-  std::array<SimpleAccMonitor*,3> acc_monitors;
+  std::array<TagAccMonitor_t*,3> acc_monitors;
   SimpleTracer *trace_monitor;
   Executor_t* executor;
   void acc_pfc_start() {
@@ -157,10 +158,10 @@ struct TagCacheDriver {
       tag_mem->connect(dfi_outer->get_client(1)),
       tag_mem->connect(dfi_outer->get_client(2)));
 
-    acc_monitors = std::array<SimpleAccMonitor*,3>{
-      new SimpleAccMonitor(),
-      new SimpleAccMonitor(),
-      new SimpleAccMonitor()
+    acc_monitors = std::array<TagAccMonitor_t*,3>{
+      new TagAccMonitor_t(),
+      new TagAccMonitor_t(),
+      new TagAccMonitor_t()
     };
 
     trace_monitor = new SimpleTracer();
@@ -237,6 +238,16 @@ struct TagCacheDriver {
       << "Total" "ReadMiss: " << total_read_miss << std::endl
       << "Total" "WriteMiss: " << total_write_miss << std::endl
       << "Total" "Invalid: " << total_invalid << std::endl
+    ;
+
+    std::cout << "TT+TM0: " << std::endl
+      << "TT+TM0" "Acc: " << acc_monitors[DfiTagger::TT]->get_access() + acc_monitors[DfiTagger::MTT]->get_access() << std::endl
+      << "TT+TM0" "Read: " << acc_monitors[DfiTagger::TT]->get_access_read() + acc_monitors[DfiTagger::MTT]->get_access_read() << std::endl
+      << "TT+TM0" "Write: " << acc_monitors[DfiTagger::TT]->get_access_write() + acc_monitors[DfiTagger::MTT]->get_access_write() << std::endl
+      << "TT+TM0" "Miss: " << acc_monitors[DfiTagger::TT]->get_miss() + acc_monitors[DfiTagger::MTT]->get_miss() << std::endl
+      << "TT+TM0" "Writeback: " << acc_monitors[DfiTagger::TT]->get_invalid() + acc_monitors[DfiTagger::MTT]->get_invalid() << std::endl
+      << "TT+TM0" "MemAcc: " << acc_monitors[DfiTagger::TT]->get_miss() + acc_monitors[DfiTagger::MTT]->get_miss() + 
+                                acc_monitors[DfiTagger::TT]->get_invalid() + acc_monitors[DfiTagger::MTT]->get_invalid() << std::endl
     ;
   }
 
