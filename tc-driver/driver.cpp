@@ -72,7 +72,8 @@ struct Executor_t {
   Executor_t(DfiTaggerDataCacheInterface* dc_interface) : dc_interface(dc_interface) {}
   void operator()(uint64_t t_start, uint64_t t_delta, uint64_t pa, bool rw, uint64_t tagvalue) {
     if(rw) {
-      dc_interface->write_tag(pa, tagvalue, nullptr, tagsize);
+      /// write tag value Data-Cacheblock-wise, tagsz is tagsize *(64*8bits)/64bits
+      dc_interface->write_tag(pa, tagvalue, nullptr, tagsize*(64*8)/64);
     }
     else {
       dc_interface->read_tag(pa, nullptr, tagsize);

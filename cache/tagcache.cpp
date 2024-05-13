@@ -276,7 +276,7 @@ void DfiTaggerDataCacheInterface::write_tag(uint64_t addr, dfitag_t tag, uint64_
   /// loading complete, perform writing
   auto data_tt_tag = Data64BTagAccessor(data_tt, tg);
   bool data_tt_empty_old = data_tt_tag.is_empty();
-  data_tt_tag.write_tag(stt_idx, stt_off, tag, stt_tgsz);
+  data_tt_tag.write_tag(stt_idx, stt_off, tag, tagsz);
   bool data_tt_empty_new = data_tt_tag.is_empty();
   HOOK_WRITE_ONLY(TT, tt);
 
