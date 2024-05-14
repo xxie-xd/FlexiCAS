@@ -86,7 +86,6 @@ int test_trace(std::string stemname,Executor_t& executor, EventHandler_t eventHa
   TraceReader tr(stemname,executor);
   tr.setEventHandler(eventHandler);
   tr.run();
-  tr.traceFileStat();
   return 0;
 }
 
@@ -201,62 +200,45 @@ struct TagCacheDriver {
     constexpr int TT = DfiTagger::Hierarchy::TT;
     constexpr int MTT = DfiTagger::Hierarchy::MTT;
     constexpr int MTD = DfiTagger::Hierarchy::MTD;
+#define OUTPUT_HEADER(HRY) \
+    std::cout << # HRY "Acc " \
+      << # HRY "Read " \
+      << # HRY "Write " \
+      << # HRY "Miss " \
+      << # HRY "Writeback " \
+      << # HRY "MemAcc " \
+
+    OUTPUT_HEADER(TT);
+    OUTPUT_HEADER(MTT);
+    OUTPUT_HEADER(Sum);
+
+  std::cout << std::endl;
+
 #define OUTPUT_PFC(HRY) \
-    std::cout << # HRY ": " << std::endl \
-      << # HRY "Acc: " << acc_monitors[HRY]->get_access() << std::endl \
-      << # HRY "Read: " << acc_monitors[HRY]->get_access_read() << std::endl \
-      << # HRY "Write: " << acc_monitors[HRY]->get_access_write() << std::endl \
-      << # HRY "Miss: " << acc_monitors[HRY]->get_miss() << std::endl \
-      << # HRY "MissRead: " << acc_monitors[HRY]->get_miss_read() << std::endl \
-      << # HRY "MissWrite: " << acc_monitors[HRY]->get_miss_write() << std::endl \
-      << # HRY "Invalid: " << acc_monitors[HRY]->get_invalid() << std::endl \
-      << # HRY "Writeback: " << acc_monitors[HRY]->get_writeback() << std::endl \
+    std::cout \
+      << acc_monitors[HRY]->get_access() << " " \
+      << acc_monitors[HRY]->get_access_read() << " " \
+      << acc_monitors[HRY]->get_access_write() << " " \
+      << acc_monitors[HRY]->get_miss() << " " \
+      << acc_monitors[HRY]->get_writeback() << " " \
+      << acc_monitors[HRY]->get_miss() + acc_monitors[HRY]->get_writeback() << " " \
 
     OUTPUT_PFC(TT);
     OUTPUT_PFC(MTT);
-    OUTPUT_PFC(MTD);
 
 #undef OUTPUT_PFC
-    uint64_t total_access = 0;
-    uint64_t total_access_read = 0;
-    uint64_t total_access_write = 0;
-    uint64_t total_miss = 0;
-    uint64_t total_read_miss = 0;
-    uint64_t total_write_miss = 0;
-    uint64_t total_invalid = 0;
-    uint64_t total_writeback = 0;
 
-    for (auto& m: acc_monitors) {
-      total_access += m->get_access();
-      total_access_read += m->get_access_read();
-      total_access_write += m->get_access_write();
-      total_miss += m->get_miss();
-      total_read_miss += m->get_miss_read();
-      total_write_miss += m->get_miss_write();
-      total_invalid += m->get_invalid();
-      total_writeback += m->get_writeback();
-    }
-
-    std::cout << "Total: " << std::endl
-      << "Total" "Acc: " << total_access << std::endl
-      << "Total" "Read: " << total_access_read << std::endl
-      << "Total" "Write: " << total_access_write << std::endl
-      << "Total" "Miss: " << total_miss << std::endl
-      << "Total" "ReadMiss: " << total_read_miss << std::endl
-      << "Total" "WriteMiss: " << total_write_miss << std::endl
-      << "Total" "Invalid: " << total_invalid << std::endl
-      << "Total" "Writeback: " << total_writeback << std::endl
+    std::cout 
+       << acc_monitors[TT]->get_access() + acc_monitors[MTT]->get_access() << " "
+       << acc_monitors[TT]->get_access_read() + acc_monitors[MTT]->get_access_read() << " "
+       << acc_monitors[TT]->get_access_write() + acc_monitors[MTT]->get_access_write() << " "
+       << acc_monitors[TT]->get_miss() + acc_monitors[MTT]->get_miss() << " "
+       << acc_monitors[TT]->get_writeback() + acc_monitors[MTT]->get_writeback() << " "
+       << acc_monitors[TT]->get_miss() + acc_monitors[MTT]->get_miss() + 
+          acc_monitors[TT]->get_writeback() + acc_monitors[MTT]->get_writeback() << " "
     ;
 
-    std::cout << "TT+TM0: " << std::endl
-      << "TT+TM0" "Acc: " << acc_monitors[DfiTagger::TT]->get_access() + acc_monitors[DfiTagger::MTT]->get_access() << std::endl
-      << "TT+TM0" "Read: " << acc_monitors[DfiTagger::TT]->get_access_read() + acc_monitors[DfiTagger::MTT]->get_access_read() << std::endl
-      << "TT+TM0" "Write: " << acc_monitors[DfiTagger::TT]->get_access_write() + acc_monitors[DfiTagger::MTT]->get_access_write() << std::endl
-      << "TT+TM0" "Miss: " << acc_monitors[DfiTagger::TT]->get_miss() + acc_monitors[DfiTagger::MTT]->get_miss() << std::endl
-      << "TT+TM0" "Writeback: " << acc_monitors[DfiTagger::TT]->get_writeback() + acc_monitors[DfiTagger::MTT]->get_writeback() << std::endl
-      << "TT+TM0" "MemAcc: " << acc_monitors[DfiTagger::TT]->get_miss() + acc_monitors[DfiTagger::MTT]->get_miss() + 
-                                acc_monitors[DfiTagger::TT]->get_writeback() + acc_monitors[DfiTagger::MTT]->get_writeback() << std::endl
-    ;
+    std::cout << std::endl;
   }
 
 };
@@ -266,14 +248,10 @@ static void TagCacheDriverHdlr(TagCacheDriver& td, TraceReader::Event event) {
     td.acc_pfc_reset();
     td.acc_pfc_start();
   }
-  // else if (event == TraceReader::WarmEnd) {
-  //   td.show_pfc_monitors();
-  //   std::cout << "======== Warm End ========" << std::endl;
-  // }
-  // else if (event == TraceReader::TraceStart) {
-  //   td.acc_pfc_reset();
-  //   td.acc_pfc_start();
-  // }
+  else if (event == TraceReader::TraceStart) {
+    td.acc_pfc_reset();
+    td.acc_pfc_start();
+  }
 }
 
 void random_test(uint64_t num, TagConfig& tg, DfiTaggerDataCacheInterface* dc_interface, uint64_t tagsz) ;
