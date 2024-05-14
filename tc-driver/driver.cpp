@@ -13,10 +13,10 @@ const uint64_t cacheblocksize = 64;
 const int levels = 3; // fixed.
 
 const int TTAW = 64;
-const int TTIW = 2; // ilog2(4)
-const int TTNW = 16;
+const int TTIW = 4; // ilog2(16)
+const int TTNW = 4;
 const int TTIOff = 6; // ilog2(64)
-const int TTTOfst = 8; // ilog2(64)+ilog2(4)
+const int TTTOfst = 10; // ilog2(64)+ilog2(16)
 
 const bool EnMon = true;
 
@@ -29,10 +29,10 @@ typedef void TT_delay_t;
 typedef DfiCacheNorm<TTIW,TTNW,TT_metadata_t,TT_data_t,TT_indexer_t, TT_replacer_t, TT_delay_t, EnMon> TT_cache_t ;
 
 const int MTTAW = 64;
-const int MTTIW = 2; // ilog2(4)
-const int MTTNW = 16;
+const int MTTIW = 4; // ilog2(16)
+const int MTTNW = 4;
 const int MTTIOff = 6; // ilog2(64)
-const int MTTTOfst = 8; // ilog2(64)+ilog2(4)
+const int MTTTOfst = 10; // ilog2(64)+ilog2(16)
 
 typedef MetadataMIBroadcast<MTTAW, MTTIW, MTTTOfst> MTT_metadata_t;
 typedef Data64B MTT_data_t;
