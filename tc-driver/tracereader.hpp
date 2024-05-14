@@ -60,7 +60,7 @@ public:
 
   enum Event { InitStart, InitEnd, WarmStart, WarmEnd, TraceStart, TraceEnd, SwitchFile, NumOfEvent};
   typedef std::function<void(Event)> event_handler_t;
-  void setEventHandler(Event event, event_handler_t handler_) {
+  void setEventHandler(event_handler_t handler_) {
     eventHandler.push_back(handler_);
   }
 protected:

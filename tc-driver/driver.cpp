@@ -84,7 +84,7 @@ struct Executor_t {
 
 int test_trace(std::string stemname,Executor_t& executor, EventHandler_t eventHandler) {
   TraceReader tr(stemname,executor);
-  tr.setEventHandler(TraceReader::WarmStart, eventHandler);
+  tr.setEventHandler(eventHandler);
   tr.run();
   tr.traceFileStat();
   return 0;
